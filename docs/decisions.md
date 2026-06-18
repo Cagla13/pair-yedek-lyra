@@ -95,3 +95,16 @@
 
 - Sebep: Backend REST API sözleşmesi tanımlı değil (`agents.md` §2.2 uydurmak yasak). Gerçek API
   geldiğinde yalnızca implementasyon ve DI bağlaması değişir; ViewModel/Contract etkilenmez.
+
+
+### Tema Tercihi Kalıcılığı
+
+- Seçim: **DataStore Preferences** (`androidx.datastore:datastore-preferences` **1.1.1**)
+
+- Son Güncelleme Tarihi: 18.06.2026
+
+- Uygulama: `ThemeRepository` + `ThemeDataStore` (`lyra_theme_preferences`); varsayılan koyu mod.
+  DI: `di/ThemeModule.kt`. ViewModel: `ThemeViewModel` (`stateIn` + `setDarkTheme` suspend yazma).
+
+- Sebep: Hafif, coroutine/Flow uyumlu, SharedPreferences'a göre tip güvenli; tek kullanıcı
+  tercihi (açık/koyu) için yeterli.

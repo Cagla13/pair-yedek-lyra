@@ -56,4 +56,7 @@ dependencies {
 
     // Navigasyon
     implementation(libs.androidx.navigation.compose)
+
+    // Yerel tercih saklama (tema)
+    implementation(libs.androidx.datastore.preferences)
 }

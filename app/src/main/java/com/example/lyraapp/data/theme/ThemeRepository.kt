@@ -1,19 +1,25 @@
 package com.example.lyraapp.data.theme
 
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ThemeRepository @Inject constructor() {
+class ThemeRepository @Inject constructor(
+    private val dataStore: DataStore<Preferences>,
+) {
 
-    private val _isDarkTheme = MutableStateFlow(true)
+    val isDarkTheme: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[IS_DARK_THEME_KEY] ?: DEFAULT_DARK_THEME
+    }
 
-    val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
-
-    fun setDarkTheme(isDark: Boolean) {
-        _isDarkTheme.value = isDark
+    suspend fun setDarkTheme(isDark: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[IS_DARK_THEME_KEY] = isDark
+        }
     }
 }
