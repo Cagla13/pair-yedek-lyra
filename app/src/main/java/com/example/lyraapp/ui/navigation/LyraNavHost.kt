@@ -145,7 +145,12 @@ fun LyraNavHost(
                         navController.navigate(LyraDestination.Profile.route) {
                             launchSingleTop = true
                         }
-                    }
+                    },
+                    onNavigateToPlayer = {
+                        navController.navigate(LyraDestination.Player.route) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 

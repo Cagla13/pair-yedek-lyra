@@ -29,10 +29,12 @@ sealed interface HomeIntent {
     data object ToggleFavorite : HomeIntent
     data object ProfileClicked : HomeIntent
     data object SeeAllRecentlyPlayedClicked : HomeIntent
+    data object MiniPlayerClicked : HomeIntent
 }
 
 sealed interface HomeEffect {
     data class NavigateToDetails(val itemId: String) : HomeEffect
     data object NavigateToProfile : HomeEffect
+    data object NavigateToPlayer : HomeEffect
     data class ShowNotification(val message: String) : HomeEffect
 }

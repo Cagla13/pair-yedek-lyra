@@ -44,6 +44,7 @@ import com.example.lyraapp.ui.icons.LyraIcons
 fun HomeRoute(
     onNavigateToDetails: (String) -> Unit,
     onNavigateToProfile: () -> Unit,
+    onNavigateToPlayer: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -54,6 +55,7 @@ fun HomeRoute(
             when (effect) {
                 is HomeEffect.NavigateToDetails -> onNavigateToDetails(effect.itemId)
                 HomeEffect.NavigateToProfile -> onNavigateToProfile()
+                HomeEffect.NavigateToPlayer -> onNavigateToPlayer()
                 is HomeEffect.ShowNotification -> { /* Snackbar veya Toast */ }
             }
         }
@@ -82,8 +84,9 @@ fun HomeScreen(
                     track = track,
                     isPlaying = state.isPlaying,
                     isFavorite = state.isFavorite,
+                    onBarClick = { onIntent(HomeIntent.MiniPlayerClicked) },
                     onTogglePlay = { onIntent(HomeIntent.TogglePlayPause) },
-                    onToggleFavorite = { onIntent(HomeIntent.ToggleFavorite) }
+                    onToggleFavorite = { onIntent(HomeIntent.ToggleFavorite) },
                 )
             }
         }
@@ -296,8 +299,9 @@ private fun MiniPlayer(
     track: PlayableItem,
     isPlaying: Boolean,
     isFavorite: Boolean,
+    onBarClick: () -> Unit,
     onTogglePlay: () -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
 ) {
     Surface(
         modifier = Modifier
@@ -314,19 +318,26 @@ private fun MiniPlayer(
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
+            Row(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
+                    .weight(1f)
+                    .clickable(onClick = onBarClick),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(imageVector = LyraIcons.Waveform, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = track.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-                track.subtitle?.let { Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = LyraIcons.Waveform, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(text = track.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1)
+                    track.subtitle?.let { Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
+                }
             }
             IconButton(onClick = onToggleFavorite) {
                 Icon(

@@ -98,6 +98,9 @@ class HomeViewModel @Inject constructor() : ViewModel() {
             HomeIntent.SeeAllRecentlyPlayedClicked -> {
                 // İhtiyaca göre doldurulabilir
             }
+            HomeIntent.MiniPlayerClicked -> viewModelScope.launch {
+                _effect.send(HomeEffect.NavigateToPlayer)
+            }
         }
     }
 
