@@ -26,20 +26,21 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.lyraapp.ui.appearance.ProfileAppearanceRoute
 import com.example.lyraapp.ui.auth.login.LoginRoute
 import com.example.lyraapp.ui.auth.register.RegisterRoute
+import com.example.lyraapp.ui.create_playlist.CreatePlaylistScreen
+import com.example.lyraapp.ui.create_playlist.CreatePlaylistViewModel
 import com.example.lyraapp.ui.favorites.FavoritesScreen
 import com.example.lyraapp.ui.favorites.FavoritesViewModel
 import com.example.lyraapp.ui.home.HomeRoute
-import com.example.lyraapp.ui.search.SearchScreen
-import com.example.lyraapp.ui.search.SearchViewModel
-
+import com.example.lyraapp.ui.player.LyraPlaybackBar
+import com.example.lyraapp.ui.player.PlayerRoute
+import com.example.lyraapp.ui.player.notification.NotificationPlayerPreviewRoute
 import com.example.lyraapp.ui.playlist_detail.PlaylistDetailScreen
 import com.example.lyraapp.ui.playlist_detail.PlaylistDetailViewModel
-
-
-import com.example.lyraapp.ui.create_playlist.CreatePlaylistScreen
-import com.example.lyraapp.ui.create_playlist.CreatePlaylistViewModel
+import com.example.lyraapp.ui.search.SearchScreen
+import com.example.lyraapp.ui.search.SearchViewModel
 
 @Composable
 fun LyraNavHost(
@@ -49,33 +50,50 @@ fun LyraNavHost(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-
     val showBottomBarScreens = listOf(
         LyraDestination.Home.route,
         LyraDestination.Search.route,
         LyraDestination.Library.route,
         LyraDestination.Favorites.route,
-        LyraDestination.Profile.route
+        LyraDestination.Profile.route,
+    )
+
+    val showGlobalMiniPlayer = currentRoute in listOf(
+        LyraDestination.Search.route,
+        LyraDestination.Library.route,
+        LyraDestination.Favorites.route,
+        LyraDestination.Profile.route,
     )
 
     Scaffold(
         bottomBar = {
             if (currentRoute in showBottomBarScreens) {
-                LyraBottomBar(
-                    currentRoute = currentRoute,
-                    onNavigate = { targetRoute ->
-                        navController.navigate(targetRoute) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+                Column {
+                    if (showGlobalMiniPlayer) {
+                        LyraPlaybackBar(
+                            onNavigateToPlayer = {
+                                navController.navigate(LyraDestination.Player.route) {
+                                    launchSingleTop = true
+                                }
+                            },
+                        )
                     }
-                )
+                    LyraBottomBar(
+                        currentRoute = currentRoute,
+                        onNavigate = { targetRoute ->
+                            navController.navigate(targetRoute) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                    )
+                }
             }
         },
-        modifier = modifier
+        modifier = modifier,
     ) { innerPadding ->
         NavHost(
             navController = navController,
@@ -193,9 +211,24 @@ fun LyraNavHost(
             }
 
             composable(LyraDestination.Profile.route) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Profil Ekranı İçeriği")
-                }
+                ProfileAppearanceRoute()
+            }
+
+            composable(LyraDestination.Player.route) {
+                PlayerRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToBackgroundPreview = {
+                        navController.navigate(LyraDestination.NotificationPreview.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(LyraDestination.NotificationPreview.route) {
+                NotificationPlayerPreviewRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                )
             }
 
             composable(LyraDestination.PlaylistDetail.route) {

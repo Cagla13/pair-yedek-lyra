@@ -10,4 +10,6 @@ sealed class LyraDestination(val route: String) {
     data object Profile : LyraDestination("profile")
     data object PlaylistDetail : LyraDestination("playlist_detail")
     data object CreatePlaylist : LyraDestination("create_playlist")
+    data object Player : LyraDestination("player")
+    data object NotificationPreview : LyraDestination("notification_preview")
 }
