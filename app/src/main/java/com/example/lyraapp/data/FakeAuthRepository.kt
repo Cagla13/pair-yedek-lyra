@@ -1,18 +1,20 @@
 package com.example.lyraapp.data
 
+import com.example.lyraapp.data.auth.AuthLocalDataSource
+import com.example.lyraapp.data.auth.UserProfile
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
+class FakeAuthRepository @Inject constructor(
+    private val authLocalDataSource: AuthLocalDataSource,
+) : AuthRepository {
 
-class FakeAuthRepository @Inject constructor() : AuthRepository {
+    override val currentUser: Flow<UserProfile?> = authLocalDataSource.currentUser
 
     override suspend fun login(phoneNumber: String, password: String): Result<Unit> {
         delay(NETWORK_DELAY_MS)
-        return if (password.isNotBlank()) {
-            Result.success(Unit)
-        } else {
-            Result.failure(IllegalArgumentException("Şifre boş olamaz."))
-        }
+        return authLocalDataSource.loginUser(phoneNumber, password)
     }
 
     override suspend fun register(
@@ -22,14 +24,15 @@ class FakeAuthRepository @Inject constructor() : AuthRepository {
         password: String,
     ): Result<Unit> {
         delay(NETWORK_DELAY_MS)
-        return if (firstName.isNotBlank() && lastName.isNotBlank() && password.isNotBlank()) {
-            Result.success(Unit)
-        } else {
-            Result.failure(IllegalArgumentException("Hesap bilgileri eksik."))
-        }
+        return authLocalDataSource.registerUser(
+            firstName = firstName,
+            lastName = lastName,
+            phoneNumber = phoneNumber,
+            password = password,
+        )
     }
 
     private companion object {
-        const val NETWORK_DELAY_MS = 1_000L
+        const val NETWORK_DELAY_MS = 500L
     }
 }

@@ -26,7 +26,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.lyraapp.ui.appearance.ProfileAppearanceRoute
+import com.example.lyraapp.ui.profile.ProfileRoute
 import com.example.lyraapp.ui.auth.login.LoginRoute
 import com.example.lyraapp.ui.auth.register.RegisterRoute
 import com.example.lyraapp.ui.create_playlist.CreatePlaylistScreen
@@ -216,7 +216,7 @@ fun LyraNavHost(
             }
 
             composable(LyraDestination.Profile.route) {
-                ProfileAppearanceRoute()
+                ProfileRoute()
             }
 
             composable(LyraDestination.Player.route) {

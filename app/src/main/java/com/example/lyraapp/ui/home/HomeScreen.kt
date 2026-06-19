@@ -101,6 +101,7 @@ fun HomeScreen(
             item {
                 HomeHeader(
                     userName = state.userName,
+                    userInitials = state.userInitials,
                     onProfileClick = { onIntent(HomeIntent.ProfileClicked) }
                 )
             }
@@ -135,7 +136,11 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HomeHeader(userName: String, onProfileClick: () -> Unit) {
+private fun HomeHeader(
+    userName: String,
+    userInitials: String,
+    onProfileClick: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -165,7 +170,7 @@ private fun HomeHeader(userName: String, onProfileClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = userName.take(2).uppercase(),
+                text = userInitials.ifBlank { userName.take(2).uppercase() },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onPrimaryContainer

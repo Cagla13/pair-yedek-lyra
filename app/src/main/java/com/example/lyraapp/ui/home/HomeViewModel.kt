@@ -2,6 +2,7 @@ package com.example.lyraapp.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.lyraapp.data.AuthRepository
 import com.example.lyraapp.ui.favorites.FavoritesStorage
 import com.example.lyraapp.ui.favorites.SongUiModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -11,7 +12,9 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class HomeViewModel @Inject constructor() : ViewModel() {
+class HomeViewModel @Inject constructor(
+    private val authRepository: AuthRepository,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -21,6 +24,20 @@ class HomeViewModel @Inject constructor() : ViewModel() {
 
     init {
         loadMockContent()
+        observeCurrentUser()
+    }
+
+    private fun observeCurrentUser() {
+        viewModelScope.launch {
+            authRepository.currentUser.collect { user ->
+                _uiState.update { current ->
+                    current.copy(
+                        userName = user?.fullName.orEmpty(),
+                        userInitials = user?.initials.orEmpty(),
+                    )
+                }
+            }
+        }
     }
 
     fun onIntent(intent: HomeIntent) {
@@ -115,7 +132,8 @@ class HomeViewModel @Inject constructor() : ViewModel() {
     private fun loadMockContent() {
         _uiState.update {
             HomeUiState(
-                userName = "Nazlı Yazıcı",
+                userName = "",
+                userInitials = "",
                 quickPicks = listOf(
                     PlayableItem("1", "Gece Sürüşü", "Sakin Ritmler", gradientIndex = 0),
                     PlayableItem("2", "Sabah Kahvesi", "Akustik", gradientIndex = 1),

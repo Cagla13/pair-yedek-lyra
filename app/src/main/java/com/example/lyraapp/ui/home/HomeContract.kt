@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 @Immutable
 data class HomeUiState(
     val userName: String = "",
+    val userInitials: String = "",
     val quickPicks: List<PlayableItem> = emptyList(),
     val recentlyPlayed: List<PlayableItem> = emptyList(),
     val customPlaylists: List<PlayableItem> = emptyList(),
