@@ -1,21 +1,10 @@
 package com.example.lyraapp.ui.navigation
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -34,6 +23,7 @@ import com.example.lyraapp.ui.create_playlist.CreatePlaylistViewModel
 import com.example.lyraapp.ui.favorites.FavoritesScreen
 import com.example.lyraapp.ui.favorites.FavoritesViewModel
 import com.example.lyraapp.ui.home.HomeRoute
+import com.example.lyraapp.ui.library.LibraryRoute
 import com.example.lyraapp.ui.player.LyraPlaybackBar
 import com.example.lyraapp.ui.player.PlayerRoute
 import com.example.lyraapp.ui.player.notification.NotificationPlayerPreviewRoute
@@ -161,42 +151,27 @@ fun LyraNavHost(
 
 
             composable(LyraDestination.Library.route) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Müzik Kütüphaneniz",
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                    }
-
-
-                    FloatingActionButton(
-                        onClick = {
-                            navController.navigate(LyraDestination.CreatePlaylist.route) {
-                                launchSingleTop = true
+                LibraryRoute(
+                    onNavigateToSearch = {
+                        navController.navigate(LyraDestination.Search.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
                             }
-                        },
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(bottom = 16.dp, end = 16.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Yeni Çalma Listesi Oluştur",
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
+                    onNavigateToCreatePlaylist = {
+                        navController.navigate(LyraDestination.CreatePlaylist.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToPlaylistDetail = {
+                        navController.navigate(LyraDestination.PlaylistDetail.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
             }
 
             composable(LyraDestination.Favorites.route) {
