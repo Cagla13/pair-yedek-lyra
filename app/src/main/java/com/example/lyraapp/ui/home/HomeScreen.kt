@@ -18,15 +18,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,21 +46,20 @@ import com.example.lyraapp.ui.icons.LyraIcons
 
 @Composable
 fun HomeRoute(
-    onNavigateToDetails: (String) -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToPlayer: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is HomeEffect.NavigateToDetails -> onNavigateToDetails(effect.itemId)
                 HomeEffect.NavigateToProfile -> onNavigateToProfile()
                 HomeEffect.NavigateToPlayer -> onNavigateToPlayer()
-                is HomeEffect.ShowNotification -> { /* Snackbar veya Toast */ }
+                is HomeEffect.ShowNotification -> snackbarHostState.showSnackbar(effect.message)
             }
         }
     }
@@ -64,7 +67,8 @@ fun HomeRoute(
     Box(modifier = modifier.fillMaxSize()) {
         HomeScreen(
             state = uiState,
-            onIntent = viewModel::onIntent
+            onIntent = viewModel::onIntent,
+            snackbarHostState = snackbarHostState,
         )
     }
 }
@@ -73,11 +77,13 @@ fun HomeRoute(
 fun HomeScreen(
     state: HomeUiState,
     onIntent: (HomeIntent) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             state.currentPlayingTrack?.let { track ->
                 MiniPlayer(
@@ -91,6 +97,44 @@ fun HomeScreen(
             }
         }
     ) { innerPadding ->
+        if (state.isLoading && state.quickPicks.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
+            return@Scaffold
+        }
+
+        if (state.errorMessage != null && state.quickPicks.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = state.errorMessage,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Tekrar dene",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { onIntent(HomeIntent.RetryLoad) },
+                    )
+                }
+            }
+            return@Scaffold
+        }
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()

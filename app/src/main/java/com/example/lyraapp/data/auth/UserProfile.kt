@@ -1,9 +1,11 @@
 package com.example.lyraapp.data.auth
 
 data class UserProfile(
+    val id: String = "",
     val firstName: String,
     val lastName: String,
     val phoneNumber: String,
+    val profileCompleted: Boolean = true,
 ) {
     val fullName: String
         get() = listOf(firstName, lastName)
@@ -24,20 +26,3 @@ data class UserProfile(
             return "@$userPart$lastInitial"
         }
 }
-
-internal data class StoredUser(
-    val firstName: String,
-    val lastName: String,
-    val phoneNumber: String,
-    val normalizedPhone: String,
-    val password: String,
-) {
-    fun toProfile(): UserProfile = UserProfile(
-        firstName = firstName,
-        lastName = lastName,
-        phoneNumber = phoneNumber,
-    )
-}
-
-internal fun normalizePhoneNumber(phoneNumber: String): String =
-    phoneNumber.filter { it.isDigit() }

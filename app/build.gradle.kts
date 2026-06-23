@@ -4,6 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     alias(libs.plugins.ksp)
     id("com.google.dagger.hilt.android")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -59,4 +60,12 @@ dependencies {
 
     // Yerel tercih saklama (tema)
     implementation(libs.androidx.datastore.preferences)
+
+    // Ağ katmanı
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.kotlinx.serialization)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.media3.exoplayer)
 }

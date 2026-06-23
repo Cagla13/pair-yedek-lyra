@@ -1,0 +1,133 @@
+package com.example.lyraapp.data.remote.dto
+
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class ApiEnvelope<T>(
+    val data: T,
+)
+
+@Serializable
+data class ApiErrorEnvelope(
+    val error: ApiErrorBody? = null,
+)
+
+@Serializable
+data class ApiErrorBody(
+    val code: String? = null,
+    val message: String? = null,
+)
+
+@Serializable
+data class OtpRequestBody(
+    val phone: String,
+)
+
+@Serializable
+data class OtpRequestDataDto(
+    val sent: Boolean = false,
+    @SerialName("firstTime") val firstTime: Boolean = false,
+)
+
+@Serializable
+data class OtpVerifyBody(
+    val phone: String,
+    val code: String,
+)
+
+@Serializable
+data class AuthTokensDto(
+    val accessToken: String,
+    val refreshToken: String,
+    val tokenType: String = "Bearer",
+    val expiresIn: Int = 0,
+)
+
+@Serializable
+data class UserDto(
+    val id: String,
+    val phone: String,
+    val displayName: String? = null,
+    val firstName: String? = null,
+    val lastName: String? = null,
+    val birthDate: String? = null,
+    val createdAt: String? = null,
+    val profileCompleted: Boolean = false,
+)
+
+@Serializable
+data class AuthSessionDto(
+    val accessToken: String,
+    val refreshToken: String,
+    val tokenType: String = "Bearer",
+    val expiresIn: Int = 0,
+    val user: UserDto? = null,
+    @SerialName("firstTime") val firstTime: Boolean = false,
+)
+
+@Serializable
+data class UpdateProfileBody(
+    val firstName: String,
+    val lastName: String,
+    val birthDate: String,
+)
+
+@Serializable
+data class RefreshTokenBody(
+    val refreshToken: String,
+)
+
+@Serializable
+data class SongDto(
+    val id: String,
+    val title: String,
+    val artist: String,
+    val album: String? = null,
+    val durationMs: Long = 0L,
+    val mimeType: String? = null,
+    val sizeBytes: Long? = null,
+    val createdAt: String? = null,
+)
+
+@Serializable
+data class SongsResponseDto(
+    val data: List<SongDto> = emptyList(),
+    val nextCursor: String? = null,
+)
+
+@Serializable
+data class PlaylistDto(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    val createdAt: String? = null,
+    val ownerId: String? = null,
+)
+
+@Serializable
+data class PlaylistWithSongsDto(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    val createdAt: String? = null,
+    val ownerId: String? = null,
+    val songs: List<SongDto> = emptyList(),
+)
+
+@Serializable
+data class StreamUrlDto(
+    val url: String,
+    val expiresAt: String? = null,
+    val mimeType: String? = null,
+)
+
+@Serializable
+data class RecordPlayBody(
+    val songId: String,
+)
+
+@Serializable
+data class RecordPlayDataDto(
+    val recorded: Boolean = false,
+)

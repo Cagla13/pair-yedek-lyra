@@ -12,7 +12,8 @@ data class HomeUiState(
     val currentPlayingTrack: PlayableItem? = null,
     val isPlaying: Boolean = false,
     val isFavorite: Boolean = false,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null,
 )
 
 data class PlayableItem(
@@ -20,7 +21,8 @@ data class PlayableItem(
     val title: String,
     val subtitle: String? = null,
     val imageUrl: String? = null,
-    val gradientIndex: Int = 0
+    val gradientIndex: Int = 0,
+    val durationMs: Long = 0L,
 )
 
 sealed interface HomeIntent {
@@ -31,10 +33,10 @@ sealed interface HomeIntent {
     data object ProfileClicked : HomeIntent
     data object SeeAllRecentlyPlayedClicked : HomeIntent
     data object MiniPlayerClicked : HomeIntent
+    data object RetryLoad : HomeIntent
 }
 
 sealed interface HomeEffect {
-    data class NavigateToDetails(val itemId: String) : HomeEffect
     data object NavigateToProfile : HomeEffect
     data object NavigateToPlayer : HomeEffect
     data class ShowNotification(val message: String) : HomeEffect

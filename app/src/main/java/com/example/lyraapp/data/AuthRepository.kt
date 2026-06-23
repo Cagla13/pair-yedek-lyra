@@ -3,16 +3,29 @@ package com.example.lyraapp.data
 import com.example.lyraapp.data.auth.UserProfile
 import kotlinx.coroutines.flow.Flow
 
+data class OtpRequestResult(
+    val apiPhone: String,
+    val firstTime: Boolean,
+)
+
+data class OtpVerifyResult(
+    val firstTime: Boolean,
+    val profileCompleted: Boolean,
+)
+
 interface AuthRepository {
 
     val currentUser: Flow<UserProfile?>
 
-    suspend fun login(phoneNumber: String, password: String): Result<Unit>
+    suspend fun requestOtp(phoneNumber: String): Result<OtpRequestResult>
 
-    suspend fun register(
+    suspend fun verifyOtp(phoneNumber: String, code: String): Result<OtpVerifyResult>
+
+    suspend fun completeProfile(
         firstName: String,
         lastName: String,
-        phoneNumber: String,
-        password: String,
+        birthDate: String,
     ): Result<Unit>
+
+    suspend fun hydrateSession(): Result<Unit>
 }

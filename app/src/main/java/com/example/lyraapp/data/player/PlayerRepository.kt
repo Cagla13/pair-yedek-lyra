@@ -4,6 +4,13 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface PlayerRepository {
     val playbackState: StateFlow<PlaybackState>
+
+    suspend fun playTrack(
+        track: PlaybackTrack,
+        queue: List<PlaybackTrack> = listOf(track),
+        startIndex: Int = 0,
+    )
+
     suspend fun togglePlayPause()
     suspend fun toggleFavorite()
     suspend fun toggleShuffle()
@@ -19,6 +26,7 @@ data class PlaybackTrack(
     val artist: String,
     val album: String,
     val sourceTitle: String,
+    val durationMs: Long = 0L,
 )
 
 data class PlaybackState(

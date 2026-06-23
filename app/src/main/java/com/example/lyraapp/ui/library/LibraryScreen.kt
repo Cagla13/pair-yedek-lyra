@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -120,16 +121,47 @@ fun LibraryScreen(
 
             when (state.selectedFilter) {
                 LibraryFilter.Playlists -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 16.dp),
-                    ) {
-                        items(state.playlists, key = { it.id }) { playlist ->
-                            LibraryPlaylistRow(
-                                item = playlist,
-                                onClick = { onIntent(LibraryIntent.PlaylistClicked(playlist.id)) },
-                                onMenuClick = { onIntent(LibraryIntent.PlaylistMenuClicked(playlist.id)) },
-                            )
+                    if (state.isLoading && state.playlists.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (state.errorMessage != null && state.playlists.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = state.errorMessage,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Tekrar dene",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { onIntent(LibraryIntent.RetryLoad) },
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 16.dp),
+                        ) {
+                            items(state.playlists, key = { it.id }) { playlist ->
+                                LibraryPlaylistRow(
+                                    item = playlist,
+                                    onClick = { onIntent(LibraryIntent.PlaylistClicked(playlist.id)) },
+                                    onMenuClick = { onIntent(LibraryIntent.PlaylistMenuClicked(playlist.id)) },
+                                )
+                            }
                         }
                     }
                 }

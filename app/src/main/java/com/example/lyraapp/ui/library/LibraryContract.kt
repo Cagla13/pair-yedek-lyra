@@ -9,6 +9,7 @@ data class LibraryUiState(
     val isGridView: Boolean = false,
     val playlists: List<LibraryPlaylistItem> = emptyList(),
     val isLoading: Boolean = false,
+    val errorMessage: String? = null,
 )
 
 @Immutable
@@ -35,6 +36,7 @@ sealed interface LibraryIntent {
     data object CreatePlaylistClicked : LibraryIntent
     data class PlaylistClicked(val playlistId: String) : LibraryIntent
     data class PlaylistMenuClicked(val playlistId: String) : LibraryIntent
+    data object RetryLoad : LibraryIntent
 }
 
 sealed interface LibraryEffect {

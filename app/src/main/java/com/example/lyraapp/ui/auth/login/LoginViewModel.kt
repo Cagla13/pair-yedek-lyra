@@ -14,18 +14,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/**
- * Login ekranının MVI ViewModel'i.
- *
- * Tek giriş noktası [onIntent]'tir. Durum [uiState] üzerinden gözlemlenir; tek seferlik
- * olaylar [effect] kanalından akar.
- */
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState())
+    private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
 
     private val _effect = Channel<LoginEffect>(Channel.BUFFERED)
@@ -34,39 +28,33 @@ class LoginViewModel @Inject constructor(
     fun onIntent(intent: LoginIntent) {
         when (intent) {
             is LoginIntent.PhoneNumberChanged -> updateForm { it.copy(phoneNumber = intent.value) }
-            is LoginIntent.PasswordChanged -> updateForm { it.copy(password = intent.value) }
-            is LoginIntent.TogglePasswordVisibility -> _uiState.update { it.copy(isPasswordVisible = !it.isPasswordVisible) }
-            is LoginIntent.Submit -> submit()
-            is LoginIntent.RegisterClicked -> viewModelScope.launch { _effect.send(LoginEffect.NavigateToRegister) }
+            LoginIntent.Submit -> submit()
         }
     }
 
-    /** Form alanını günceller ve giriş butonunun aktifliğini yeniden türetir. */
     private fun updateForm(transform: (LoginUiState) -> LoginUiState) {
         _uiState.update { current ->
             val updated = transform(current)
-            updated.copy(isLoginEnabled = updated.isFormValid())
+            updated.copy(isContinueEnabled = updated.phoneNumber.filter { it.isDigit() }.length >= 10)
         }
     }
 
     private fun submit() {
         val state = _uiState.value
-        if (!state.isLoginEnabled || state.isLoading) return
+        if (!state.isContinueEnabled || state.isLoading) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            val result = authRepository.login(state.phoneNumber, state.password)
+            val result = authRepository.requestOtp(state.phoneNumber)
             _uiState.update { it.copy(isLoading = false) }
 
             result
-                .onSuccess { _effect.send(LoginEffect.NavigateToHome) }
+                .onSuccess { otpResult ->
+                    _effect.send(LoginEffect.NavigateToOtp(otpResult.apiPhone))
+                }
                 .onFailure { error ->
-                    _effect.send(LoginEffect.ShowError(error.message ?: "Giriş başarısız."))
+                    _effect.send(LoginEffect.ShowError(error.message ?: "Kod gönderilemedi."))
                 }
         }
     }
 }
-
-/** Giriş butonunun aktif olması için minimal validasyon. */
-private fun LoginUiState.isFormValid(): Boolean =
-    phoneNumber.isNotBlank() && password.isNotBlank()

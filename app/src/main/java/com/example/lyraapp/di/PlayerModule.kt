@@ -1,6 +1,6 @@
 package com.example.lyraapp.di
 
-import com.example.lyraapp.data.player.FakePlayerRepository
+import com.example.lyraapp.data.player.MediaPlayerRepository
 import com.example.lyraapp.data.player.PlayerRepository
 import dagger.Module
 import dagger.Provides
@@ -14,5 +14,5 @@ object PlayerModule {
 
     @Provides
     @Singleton
-    fun providePlayerRepository(impl: FakePlayerRepository): PlayerRepository = impl
+    fun providePlayerRepository(impl: MediaPlayerRepository): PlayerRepository = impl
 }

@@ -11,12 +11,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.lyraapp.ui.profile.ProfileRoute
 import com.example.lyraapp.ui.auth.login.LoginRoute
+import com.example.lyraapp.ui.auth.otp.OtpRoute
 import com.example.lyraapp.ui.auth.register.RegisterRoute
 import com.example.lyraapp.ui.create_playlist.CreatePlaylistScreen
 import com.example.lyraapp.ui.create_playlist.CreatePlaylistViewModel
@@ -28,9 +31,7 @@ import com.example.lyraapp.ui.player.LyraPlaybackBar
 import com.example.lyraapp.ui.player.PlayerRoute
 import com.example.lyraapp.ui.player.notification.NotificationPlayerPreviewRoute
 import com.example.lyraapp.ui.playlist_detail.PlaylistDetailScreen
-import com.example.lyraapp.ui.playlist_detail.PlaylistDetailViewModel
-import com.example.lyraapp.ui.search.SearchScreen
-import com.example.lyraapp.ui.search.SearchViewModel
+import com.example.lyraapp.ui.search.SearchRoute
 
 @Composable
 fun LyraNavHost(
@@ -92,17 +93,36 @@ fun LyraNavHost(
         ) {
             composable(LyraDestination.Login.route) {
                 LoginRoute(
+                    onNavigateToOtp = { phone ->
+                        navController.navigate(LyraDestination.OtpVerify.createRoute(phone)) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(
+                route = LyraDestination.OtpVerify.route,
+                arguments = listOf(
+                    navArgument(LyraDestination.OtpVerify.PHONE_ARG) {
+                        type = NavType.StringType
+                    },
+                ),
+            ) {
+                OtpRoute(
                     onNavigateToHome = {
                         navController.navigate(LyraDestination.Home.route) {
                             popUpTo(LyraDestination.Login.route) { inclusive = true }
                             launchSingleTop = true
                         }
                     },
-                    onNavigateToRegister = {
+                    onNavigateToCompleteProfile = {
                         navController.navigate(LyraDestination.Register.route) {
+                            popUpTo(LyraDestination.Login.route) { inclusive = false }
                             launchSingleTop = true
                         }
                     },
+                    onNavigateBack = { navController.popBackStack() },
                 )
             }
 
@@ -114,23 +134,12 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
-                    onNavigateToLogin = {
-                        navController.navigate(LyraDestination.Login.route) {
-                            popUpTo(LyraDestination.Login.route) { inclusive = false }
-                            launchSingleTop = true
-                        }
-                    },
                     onNavigateBack = { navController.popBackStack() },
                 )
             }
 
             composable(LyraDestination.Home.route) {
                 HomeRoute(
-                    onNavigateToDetails = { itemId ->
-                        navController.navigate(LyraDestination.PlaylistDetail.route) {
-                            launchSingleTop = true
-                        }
-                    },
                     onNavigateToProfile = {
                         navController.navigate(LyraDestination.Profile.route) {
                             launchSingleTop = true
@@ -145,8 +154,13 @@ fun LyraNavHost(
             }
 
             composable(LyraDestination.Search.route) {
-                val searchViewModel: SearchViewModel = viewModel()
-                SearchScreen(viewModel = searchViewModel)
+                SearchRoute(
+                    onNavigateToPlayer = {
+                        navController.navigate(LyraDestination.Player.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
             }
 
 
@@ -166,8 +180,8 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
-                    onNavigateToPlaylistDetail = {
-                        navController.navigate(LyraDestination.PlaylistDetail.route) {
+                    onNavigateToPlaylistDetail = { playlistId ->
+                        navController.navigate(LyraDestination.PlaylistDetail.createRoute(playlistId)) {
                             launchSingleTop = true
                         }
                     },
@@ -211,11 +225,21 @@ fun LyraNavHost(
                 )
             }
 
-            composable(LyraDestination.PlaylistDetail.route) {
-                val playlistDetailViewModel: PlaylistDetailViewModel = hiltViewModel()
+            composable(
+                route = LyraDestination.PlaylistDetail.route,
+                arguments = listOf(
+                    navArgument(LyraDestination.PlaylistDetail.PLAYLIST_ID_ARG) {
+                        type = NavType.StringType
+                    },
+                ),
+            ) {
                 PlaylistDetailScreen(
-                    viewModel = playlistDetailViewModel,
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPlayer = {
+                        navController.navigate(LyraDestination.Player.route) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 

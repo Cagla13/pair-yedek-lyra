@@ -5,6 +5,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -19,10 +21,37 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.lyraapp.ui.icons.LyraIcons
 import kotlinx.coroutines.flow.collectLatest
+
+@Composable
+fun SearchRoute(
+    onNavigateToPlayer: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: SearchViewModel = hiltViewModel(),
+) {
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        viewModel.effect.collectLatest { effect ->
+            when (effect) {
+                is SearchContract.SideEffect.ShowToast -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                }
+                SearchContract.SideEffect.NavigateToPlayer -> onNavigateToPlayer()
+            }
+        }
+    }
+
+    SearchScreen(
+        viewModel = viewModel,
+        modifier = modifier,
+    )
+}
 
 @Composable
 fun SearchScreen(
@@ -30,17 +59,6 @@ fun SearchScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsState()
-    val context = LocalContext.current
-
-    LaunchedEffect(key1 = true) {
-        viewModel.effect.collectLatest { effect ->
-            when (effect) {
-                is SearchContract.SideEffect.ShowToast -> {
-                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
 
     Column(
         modifier = modifier
@@ -49,51 +67,115 @@ fun SearchScreen(
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 1. Başlık
         Text(
             text = "Ara",
             style = MaterialTheme.typography.headlineLarge.copy(
                 fontWeight = FontWeight.Bold,
-                fontSize = 32.sp
-            )
+                fontSize = 32.sp,
+            ),
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 2. Arama Giriş Alanı
         SearchInputField(
             query = state.searchQuery,
-            onQueryChange = { viewModel.onIntent(SearchContract.Intent.OnSearchQueryChanged(it)) }
+            onQueryChange = { viewModel.onIntent(SearchContract.Intent.OnSearchQueryChanged(it)) },
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 3. Kategoriler (Hepsi, Pop, Elektronik...)
         CategoryFilterRow(
             categories = state.categories,
             selectedCategory = state.selectedCategory,
-            onCategorySelect = { viewModel.onIntent(SearchContract.Intent.OnCategorySelected(it)) }
+            onCategorySelect = { viewModel.onIntent(SearchContract.Intent.OnCategorySelected(it)) },
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 4. Alt Başlık
-        Text(
-            text = "Türlere göz at",
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
-            )
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // 5. Grid Listesi (Kalan alanı kaplaması için weight verdik)
         Box(modifier = Modifier.weight(1f)) {
-            GenresVerticalGrid(
-                genres = state.genres,
-                onGenreClick = { viewModel.onIntent(SearchContract.Intent.OnGenreClick(it)) }
-            )
+            when {
+                state.isLoading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
+                    }
+                }
+                state.showResults -> {
+                    if (state.searchResults.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = state.errorMessage ?: "Sonuç bulunamadı.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        SearchResultsList(
+                            results = state.searchResults,
+                            onSongClick = { viewModel.onIntent(SearchContract.Intent.OnSongClick(it)) },
+                        )
+                    }
+                }
+                else -> {
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        Text(
+                            text = "Türlere göz at",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                            ),
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        GenresVerticalGrid(
+                            genres = state.genres,
+                            onGenreClick = { viewModel.onIntent(SearchContract.Intent.OnGenreClick(it)) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SearchResultsList(
+    results: List<com.example.lyraapp.data.search.SearchSongItem>,
+    onSongClick: (String) -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items(results, key = { it.id }) { song ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onSongClick(song.id) }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = song.title,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = song.artist,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    text = song.durationLabel,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

@@ -1,9 +1,6 @@
 package com.example.lyraapp.ui.auth.register
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,8 +17,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,39 +29,33 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.lyraapp.ui.icons.LyraIcons
 import com.example.lyraapp.ui.theme.LyraAppTheme
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
-/**
- * Register akışının durumlu (stateful) giriş noktası.
- *
- * [RegisterViewModel]'i Hilt'ten alır, durumu yaşam döngüsüne duyarlı şekilde toplar ve
- * tek seferlik [RegisterEffect]'leri tüketir. Navigasyon Effect'leri buradan, [NavHost]'tan
- * gelen lambda'lara köprülenir. UI ile iş mantığı arasındaki tek köprü burasıdır.
- */
 @Composable
 fun RegisterRoute(
     onNavigateToHome: () -> Unit,
-    onNavigateToLogin: () -> Unit,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RegisterViewModel = hiltViewModel(),
@@ -74,7 +67,6 @@ fun RegisterRoute(
         viewModel.effect.collect { effect ->
             when (effect) {
                 RegisterEffect.NavigateToHome -> onNavigateToHome()
-                RegisterEffect.NavigateToLogin -> onNavigateToLogin()
                 RegisterEffect.NavigateBack -> onNavigateBack()
                 is RegisterEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
             }
@@ -89,12 +81,7 @@ fun RegisterRoute(
     )
 }
 
-/**
- * Register ("Hesap oluştur") ekranı.
- *
- * Tamamen durumsuzdur (stateless): durumu [state] üzerinden alır, kullanıcı etkileşimlerini
- * [onIntent] ile yukarı yayımlar. İş mantığı veya state sahipliği bu katmanda bulunmaz.
- */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
     state: RegisterUiState,
@@ -102,6 +89,34 @@ fun RegisterScreen(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
+    var showDatePicker by remember { mutableStateOf(false) }
+    val datePickerState = rememberDatePickerState()
+
+    if (showDatePicker) {
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            onIntent(RegisterIntent.BirthDateChanged(formatBirthDate(millis)))
+                        }
+                        showDatePicker = false
+                    },
+                ) {
+                    Text("Seç")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("İptal")
+                }
+            },
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = MaterialTheme.colorScheme.background,
@@ -117,324 +132,122 @@ fun RegisterScreen(
                 .padding(horizontal = 24.dp),
         ) {
             Spacer(Modifier.height(8.dp))
-
-            BackButton(onClick = { onIntent(RegisterIntent.BackClicked) })
-            Spacer(Modifier.height(16.dp))
-
-            HeaderTexts()
-            Spacer(Modifier.height(24.dp))
-
-            NameFields(
-                firstName = state.firstName,
-                lastName = state.lastName,
-                onFirstNameChange = { onIntent(RegisterIntent.FirstNameChanged(it)) },
-                onLastNameChange = { onIntent(RegisterIntent.LastNameChanged(it)) },
-            )
-            Spacer(Modifier.height(14.dp))
-
-            PhoneNumberField(
-                value = state.phoneNumber,
-                onValueChange = { onIntent(RegisterIntent.PhoneNumberChanged(it)) },
-            )
-            Spacer(Modifier.height(14.dp))
-
-            PasswordField(
-                value = state.password,
-                isPasswordVisible = state.isPasswordVisible,
-                onValueChange = { onIntent(RegisterIntent.PasswordChanged(it)) },
-                onToggleVisibility = { onIntent(RegisterIntent.TogglePasswordVisibility) },
-            )
-            Spacer(Modifier.height(10.dp))
-
-            PasswordStrengthIndicator(strength = state.passwordStrength)
-            Spacer(Modifier.height(6.dp))
-
-            Text(
-                text = "En az 8 karakter, bir rakam içermeli.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.secondary,
-            )
-            Spacer(Modifier.height(18.dp))
-
-            TermsCheckbox(
-                checked = state.isTermsAccepted,
-                onCheckedChange = { onIntent(RegisterIntent.TermsAcceptedChanged(it)) },
-            )
-            Spacer(Modifier.height(24.dp))
-
-            RegisterButton(
-                enabled = state.isRegisterEnabled,
-                isLoading = state.isLoading,
-                onClick = { onIntent(RegisterIntent.Submit) },
-            )
-            Spacer(Modifier.height(20.dp))
-
-            LoginPrompt(
-                onLoginClick = { onIntent(RegisterIntent.LoginClicked) },
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
-            Spacer(Modifier.height(16.dp))
-        }
-    }
-}
-
-@Composable
-private fun BackButton(onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        Icon(
-            imageVector = LyraIcons.ArrowBack,
-            contentDescription = "Geri",
-            tint = MaterialTheme.colorScheme.onSurface,
-        )
-    }
-}
-
-@Composable
-private fun HeaderTexts() {
-    Text(
-        text = "Hesap oluştur",
-        style = MaterialTheme.typography.headlineMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurface,
-    )
-    Spacer(Modifier.height(8.dp))
-    Text(
-        text = "Birkaç adımda Lyra'ya katıl ve çalma listeni oluştur.",
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.secondary,
-    )
-}
-
-@Composable
-private fun NameFields(
-    firstName: String,
-    lastName: String,
-    onFirstNameChange: (String) -> Unit,
-    onLastNameChange: (String) -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        OutlinedTextField(
-            value = firstName,
-            onValueChange = onFirstNameChange,
-            singleLine = true,
-            modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(12.dp),
-            placeholder = { Text("Ad") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-        )
-        OutlinedTextField(
-            value = lastName,
-            onValueChange = onLastNameChange,
-            singleLine = true,
-            modifier = Modifier.weight(1f),
-            shape = RoundedCornerShape(12.dp),
-            placeholder = { Text("Soyad") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-        )
-    }
-}
-
-@Composable
-private fun PhoneNumberField(
-    value: String,
-    onValueChange: (String) -> Unit,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        label = { Text("Telefon numarası") },
-        prefix = { Text("+90") },
-        placeholder = { Text("5XX XXX XX XX") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-        leadingIcon = {
-            Icon(
-                imageVector = LyraIcons.Smartphone,
-                contentDescription = null,
-            )
-        },
-    )
-}
-
-@Composable
-private fun PasswordField(
-    value: String,
-    isPasswordVisible: Boolean,
-    onValueChange: (String) -> Unit,
-    onToggleVisibility: () -> Unit,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        placeholder = { Text("Şifre") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-        visualTransformation =
-            if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-        leadingIcon = {
-            Icon(
-                imageVector = LyraIcons.Lock,
-                contentDescription = null,
-            )
-        },
-        trailingIcon = {
-            IconButton(onClick = onToggleVisibility) {
+            IconButton(onClick = { onIntent(RegisterIntent.BackClicked) }) {
                 Icon(
-                    imageVector = LyraIcons.Visibility,
-                    contentDescription = if (isPasswordVisible) "Şifreyi gizle" else "Şifreyi göster",
+                    imageVector = LyraIcons.ArrowBack,
+                    contentDescription = "Geri",
+                    tint = MaterialTheme.colorScheme.onSurface,
                 )
             }
-        },
-    )
-}
+            Spacer(Modifier.height(16.dp))
 
-/** Şifre gücü için [RegisterUiState.PASSWORD_STRENGTH_MAX] segmentli yatay gösterge. */
-@Composable
-private fun PasswordStrengthIndicator(strength: Int) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        repeat(RegisterUiState.PASSWORD_STRENGTH_MAX) { index ->
-            val filled = index < strength
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
-                    .background(
-                        if (filled) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        },
-                    ),
-            )
-        }
-    }
-}
-
-@Composable
-private fun TermsCheckbox(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    val emphasis = SpanStyle(
-        color = MaterialTheme.colorScheme.primary,
-        fontWeight = FontWeight.Bold,
-    )
-    val annotated = buildAnnotatedString {
-        withStyle(emphasis) { append("Kullanım Koşulları") }
-        append(" ve ")
-        withStyle(emphasis) { append("Gizlilik Politikası") }
-        append("'nı okudum, kabul ediyorum.")
-    }
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-    ) {
-        Checkbox(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-        )
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text = annotated,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-    }
-}
-
-@Composable
-private fun RegisterButton(
-    enabled: Boolean,
-    isLoading: Boolean,
-    onClick: () -> Unit,
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled && !isLoading,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        shape = RoundedCornerShape(28.dp),
-    ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(20.dp),
-                strokeWidth = 2.dp,
-                color = Color.White,
-            )
-        } else {
             Text(
-                text = "Kayıt ol",
-                style = MaterialTheme.typography.titleMedium,
+                text = "Profilini tamamla",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
             )
-            Spacer(Modifier.width(8.dp))
-            Icon(
-                imageVector = LyraIcons.ArrowForward,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Lyra deneyimini kişiselleştirmek için birkaç bilgiye ihtiyacımız var.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Spacer(Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                OutlinedTextField(
+                    value = state.firstName,
+                    onValueChange = { onIntent(RegisterIntent.FirstNameChanged(it)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    label = { Text("Ad") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                )
+                OutlinedTextField(
+                    value = state.lastName,
+                    onValueChange = { onIntent(RegisterIntent.LastNameChanged(it)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                    label = { Text("Soyad") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = state.birthDate,
+                onValueChange = {},
+                readOnly = true,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                label = { Text("Doğum tarihi") },
+                placeholder = { Text("YYYY-AA-GG") },
+                trailingIcon = {
+                    IconButton(onClick = { showDatePicker = true }) {
+                        Icon(
+                            imageVector = LyraIcons.ArrowForward,
+                            contentDescription = "Tarih seç",
+                        )
+                    }
+                },
+            )
+            Spacer(Modifier.height(24.dp))
+
+            Button(
+                onClick = { onIntent(RegisterIntent.Submit) },
+                enabled = state.isRegisterEnabled && !state.isLoading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+            ) {
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White,
+                    )
+                } else {
+                    Text(
+                        text = "Başla",
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Icon(
+                        imageVector = LyraIcons.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
         }
     }
 }
 
-@Composable
-private fun LoginPrompt(
-    onLoginClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            text = "Zaten hesabın var mı?",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text = "Giriş yap",
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.clickable(onClick = onLoginClick),
-        )
+private fun formatBirthDate(millis: Long): String {
+    val formatter = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
     }
+    return formatter.format(Date(millis))
 }
 
-@Preview(name = "Register - Light", showBackground = true, showSystemUi = true)
+@Preview(showBackground = true, showSystemUi = true)
 @Composable
-private fun RegisterScreenLightPreview() {
-    LyraAppTheme(darkTheme = false) {
-        RegisterScreen(state = RegisterUiState(), onIntent = {})
-    }
-}
-
-@Preview(name = "Register - Dark", showBackground = true, showSystemUi = true)
-@Composable
-private fun RegisterScreenDarkPreview() {
+private fun RegisterScreenPreview() {
     LyraAppTheme(darkTheme = true) {
         RegisterScreen(
             state = RegisterUiState(
                 firstName = "Halit",
                 lastName = "Kalaycı",
-                phoneNumber = "555 123 45 67",
-                password = "lyra1234",
-                isTermsAccepted = true,
-                passwordStrength = 3,
+                birthDate = "1995-06-20",
                 isRegisterEnabled = true,
             ),
             onIntent = {},

@@ -1,7 +1,7 @@
 package com.example.lyraapp.di
 
-import com.example.lyraapp.data.AuthRepository
-import com.example.lyraapp.data.RemoteAuthRepository
+import com.example.lyraapp.data.home.HomeRepository
+import com.example.lyraapp.data.home.RemoteHomeRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -10,9 +10,9 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-object AuthModule {
+object HomeModule {
 
     @Provides
     @Singleton
-    fun provideAuthRepository(impl: RemoteAuthRepository): AuthRepository = impl
+    fun provideHomeRepository(impl: RemoteHomeRepository): HomeRepository = impl
 }
