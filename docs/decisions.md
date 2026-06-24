@@ -5,106 +5,25 @@
 ---
 
 ### Dependency Injection Kütüphanesi
-
-- Seçim*: **Hilt**
-
-- Son Güncelleme Tarihi*: 04.06.2026
-
-- Alternatifler: **Koin**
-
-- Sebep: **Opsiyonel**
-
+- Seçim: **Hilt**
+- Son Güncelleme Tarihi: 04.06.2026
+- Sebep: Android standartlarına uyum.
 
 ### Navigasyon
-
 - Seçim: **Compose Navigation**
-
 - Son Güncelleme Tarihi: 09.06.2026
-
-- Bağımlılık: `androidx.navigation:navigation-compose` **2.9.5** (version catalog: `navigationCompose`).
-
-- Uygulama: Tek `NavHost` (`ui/navigation/LyraNavHost.kt`) Auth grafiğini barındırır (başlangıç
-  hedefi Login). Navigasyon MVI ile uyumlu kurulur: ViewModel'de navigasyon API'si yoktur
-  (bkz. [architecture/mvi-viewmodel-rules.md](architecture/mvi-viewmodel-rules.md) §6); navigasyon
-  `Intent → Effect` üzerinden akar, `Route` Effect'i tüketip `NavHost`'tan gelen lambda'ları çağırır.
-
+- Bağımlılık: `androidx.navigation:navigation-compose` **2.9.5**.
 
 ### Sunum Katmanı Mimarisi
-
 - Seçim: **MVI (Model-View-Intent)**
-
 - Son Güncelleme Tarihi: 09.06.2026
 
-- Kapsam: Her ekran State + Intent + Effect sözleşmesiyle yazılır. Detaylı kurallar ve
-  referans implementasyon (Login) için bkz. [architecture/mvi-overview.md](architecture/mvi-overview.md).
-
-- Sebep: Tek yönlü veri akışı, durumsuz UI, test edilebilirlik.
-
-
-### Hilt Annotation Processing
-
-- Seçim: **KSP** (kapt değil)
-
-- Son Güncelleme Tarihi: 09.06.2026
-
-- Sürümler: Hilt **2.59.2**, KSP **2.2.10-2.0.2** (Kotlin 2.2.10 ile birebir uyumlu).
-
-- Compose'da ViewModel: `androidx.hilt:hilt-lifecycle-viewmodel-compose` (`hiltViewModel()`).
-  Compose Navigation henüz kurulmadığından navigation-compose bağımlılığı eklenmemiştir.
-
-- Sebep: KSP, kapt'a göre belirgin biçimde hızlıdır ve Kotlin 2.2 ile uyumludur.
-
-
-### AGP 9 Built-in Kotlin + KSP Uyumu
-
-- Karar: `gradle.properties` içinde **`android.disallowKotlinSourceSets=false`** zorunludur.
-
-- Son Güncelleme Tarihi: 09.06.2026
-
-- Sebep: AGP 9 built-in Kotlin kullanır; KSP'nin ürettiği kaynak dizinlerini eklemesi bu bayrak
-  olmadan derlemeyi kırar. Bayrak deneysel (experimental) olarak işaretlidir ancak gereklidir.
-
+### Arka Plan Oynatma ve Medya Kontrolleri
+- Seçim: **Media3 MediaSessionService**
+- Son Güncelleme Tarihi: 24.06.2026
+- Uygulama: `LyraMediaService` (`MediaSessionService`) üzerinden `ExoPlayer` instance'ı sisteme bağlanır.
+- Sebep: Android sisteminin bildirim alanında standart medya kontrollerini (Play/Pause, Skip) sağlaması ve foreground service sayesinde uygulamanın arka planda öldürülmesini engellemek.
 
 ### Alt Gezinme Çubuğu (Bottom Navigation Bar)
-
-- Seçim: **Material 3 `NavigationBar`** — tek `NavHost` + iskelet seviyesinde tek dış `Scaffold`.
-
+- Seçim: **Material 3 NavigationBar**
 - Son Güncelleme Tarihi: 11.06.2026
-
-- Uygulama: `ui/navigation/LyraBottomBar.kt` (bileşen + `LyraBottomBarTab` sekme tanımları) ve
-  `ui/navigation/LyraNavHost.kt` (Scaffold `bottomBar` entegrasyonu). Çubuk yalnızca üst düzey
-  sekme rotalarında görünür (Auth ekranlarında gizli); böylece her ana sayfanın altında otomatik
-  yer alır. Sekme geçişi standart desenle yapılır: `popUpTo(Home) { saveState = true }` +
-  `launchSingleTop` + `restoreState`. Dış Scaffold'ın `contentWindowInsets`'i sıfırdır; sistem
-  çubuğu boşluklarını ekranlar kendisi yönetir, içerik dolgusu yalnızca alt çubuk yüksekliğini taşır.
-
-- MVI kapsamı: BNB navigasyon iskeletidir (chrome), feature ekranı değildir; State/Intent/Effect
-  sözleşmesi yoktur. Seçili sekme `currentBackStackEntryAsState()` ile nav back stack'ten türetilir
-  (tek doğruluk kaynağı back stack'tir). Sekme ekranları MVI ile yazıldığında yalnızca
-  `LyraNavHost` içindeki geçici placeholder rotaları gerçek `Route`'lara bağlanacaktır.
-
-- Sebep: Tek doğruluk kaynağı (back stack) ile durum tekrarına yer bırakmaz; sekme başına ayrı
-  `NavHost`/ViewModel karmaşıklığından kaçınılır; mevcut Auth grafiği değişmeden korunur.
-
-
-### Backend Hazır Değilken Veri Katmanı
-
-- Karar: **Stub repository** deseni — Repository interface + `Fake<X>Repository` implementasyonu.
-
-- Son Güncelleme Tarihi: 09.06.2026
-
-- Sebep: Backend REST API sözleşmesi tanımlı değil (`agents.md` §2.2 uydurmak yasak). Gerçek API
-  geldiğinde yalnızca implementasyon ve DI bağlaması değişir; ViewModel/Contract etkilenmez.
-
-
-### Tema Tercihi Kalıcılığı
-
-- Seçim: **DataStore Preferences** (`androidx.datastore:datastore-preferences` **1.1.1**)
-
-- Son Güncelleme Tarihi: 18.06.2026
-
-- Uygulama: `ThemeRepository` + `ThemeDataStore` (`lyra_theme_preferences`); varsayılan koyu mod.
-  DI: `di/ThemeModule.kt`. ViewModel: `ThemeViewModel` (`stateIn` + `setDarkTheme` suspend yazma).
-
-- Sebep: Hafif, coroutine/Flow uyumlu, SharedPreferences'a göre tip güvenli; tek kullanıcı
-  tercihi (açık/koyu) için yeterli.

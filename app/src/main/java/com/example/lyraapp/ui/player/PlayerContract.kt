@@ -25,10 +25,8 @@ sealed interface PlayerIntent {
     data object SkipPrevious : PlayerIntent
     data object SkipNext : PlayerIntent
     data class SeekTo(val progressMs: Long) : PlayerIntent
-    data object OpenBackgroundPreview : PlayerIntent
 }
 
 sealed interface PlayerEffect {
     data object NavigateBack : PlayerEffect
-    data object NavigateToBackgroundPreview : PlayerEffect
 }

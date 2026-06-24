@@ -52,9 +52,6 @@ class PlayerViewModel @Inject constructor(
             PlayerIntent.Collapse -> viewModelScope.launch {
                 _effect.send(PlayerEffect.NavigateBack)
             }
-            PlayerIntent.OpenBackgroundPreview -> viewModelScope.launch {
-                _effect.send(PlayerEffect.NavigateToBackgroundPreview)
-            }
             PlayerIntent.TogglePlayPause -> viewModelScope.launch {
                 playerRepository.togglePlayPause()
             }

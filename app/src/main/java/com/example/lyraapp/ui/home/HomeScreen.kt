@@ -170,9 +170,9 @@ fun HomeScreen(
                 HorizontalTrackList(items = state.recentlyPlayed, onItemClick = { onIntent(HomeIntent.TrackClicked(it)) })
             }
 
-            // 4. Senin İçin Çalma Listeleri
+            // 4. Senin İçin Müzikler
             item {
-                SectionHeader(title = "Senin için çalma listeleri", onSeeAllClick = {})
+                SectionHeader(title = "Senin için müzikler", onSeeAllClick = {})
                 HorizontalTrackList(items = state.customPlaylists, onItemClick = { onIntent(HomeIntent.TrackClicked(it)) })
             }
         }

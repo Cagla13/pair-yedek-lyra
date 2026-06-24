@@ -60,6 +60,7 @@ fun LibraryRoute(
     onNavigateToSearch: () -> Unit,
     onNavigateToCreatePlaylist: () -> Unit,
     onNavigateToPlaylistDetail: (String) -> Unit,
+    onNavigateToFavorites: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -72,6 +73,7 @@ fun LibraryRoute(
                 LibraryEffect.NavigateToSearch -> onNavigateToSearch()
                 LibraryEffect.NavigateToCreatePlaylist -> onNavigateToCreatePlaylist()
                 is LibraryEffect.NavigateToPlaylistDetail -> onNavigateToPlaylistDetail(effect.playlistId)
+                LibraryEffect.NavigateToFavorites -> onNavigateToFavorites()
                 is LibraryEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
             }
         }

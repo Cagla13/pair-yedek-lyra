@@ -29,7 +29,6 @@ import com.example.lyraapp.ui.home.HomeRoute
 import com.example.lyraapp.ui.library.LibraryRoute
 import com.example.lyraapp.ui.player.LyraPlaybackBar
 import com.example.lyraapp.ui.player.PlayerRoute
-import com.example.lyraapp.ui.player.notification.NotificationPlayerPreviewRoute
 import com.example.lyraapp.ui.playlist_detail.PlaylistDetailScreen
 import com.example.lyraapp.ui.search.SearchRoute
 
@@ -185,6 +184,11 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToFavorites = {
+                        navController.navigate(LyraDestination.Favorites.route) {
+                            launchSingleTop = true
+                        }
+                    }
                 )
             }
 
@@ -193,13 +197,7 @@ fun LyraNavHost(
                 FavoritesScreen(
                     viewModel = favoritesViewModel,
                     onNavigateBack = {
-                        navController.navigate(LyraDestination.Home.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+                        navController.popBackStack()
                     }
                 )
             }
@@ -210,18 +208,7 @@ fun LyraNavHost(
 
             composable(LyraDestination.Player.route) {
                 PlayerRoute(
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToBackgroundPreview = {
-                        navController.navigate(LyraDestination.NotificationPreview.route) {
-                            launchSingleTop = true
-                        }
-                    },
-                )
-            }
-
-            composable(LyraDestination.NotificationPreview.route) {
-                NotificationPlayerPreviewRoute(
-                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 

@@ -13,10 +13,9 @@ sealed class BottomNavItem(
     data object Home : BottomNavItem(LyraDestination.Home.route, "Ana sayfa", LyraIcons.Home)
     data object Search : BottomNavItem(LyraDestination.Search.route, "Ara", LyraIcons.Search)
     data object Library : BottomNavItem(LyraDestination.Library.route, "Kütüphane", LyraIcons.LibraryMusic)
-    data object Favorites : BottomNavItem(LyraDestination.Favorites.route, "Favoriler", LyraIcons.Favorite)
     data object Profile : BottomNavItem(LyraDestination.Profile.route, "Profil", Icons.Default.Person)
 
     companion object {
-        val items = listOf(Home, Search, Library, Favorites, Profile)
+        val items = listOf(Home, Search, Library, Profile)
     }
 }

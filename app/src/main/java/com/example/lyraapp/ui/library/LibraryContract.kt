@@ -43,5 +43,6 @@ sealed interface LibraryEffect {
     data object NavigateToSearch : LibraryEffect
     data object NavigateToCreatePlaylist : LibraryEffect
     data class NavigateToPlaylistDetail(val playlistId: String) : LibraryEffect
+    data object NavigateToFavorites : LibraryEffect
     data class ShowMessage(val message: String) : LibraryEffect
 }

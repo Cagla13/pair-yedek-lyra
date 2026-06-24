@@ -3,6 +3,7 @@ package com.example.lyraapp.ui.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lyraapp.data.library.LibraryRepository
+import com.example.lyraapp.ui.favorites.FavoritesStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +25,10 @@ class LibraryViewModel @Inject constructor(
     private val _effect = Channel<LibraryEffect>(Channel.BUFFERED)
     val effect = _effect.receiveAsFlow()
 
+    companion object {
+        const val LIKED_SONGS_ID = "liked_songs_id"
+    }
+
     init {
         loadPlaylists()
     }
@@ -38,9 +43,13 @@ class LibraryViewModel @Inject constructor(
             }
             LibraryIntent.SearchClicked -> sendEffect(LibraryEffect.NavigateToSearch)
             LibraryIntent.CreatePlaylistClicked -> sendEffect(LibraryEffect.NavigateToCreatePlaylist)
-            is LibraryIntent.PlaylistClicked -> sendEffect(
-                LibraryEffect.NavigateToPlaylistDetail(intent.playlistId),
-            )
+            is LibraryIntent.PlaylistClicked -> {
+                if (intent.playlistId == LIKED_SONGS_ID) {
+                    sendEffect(LibraryEffect.NavigateToFavorites)
+                } else {
+                    sendEffect(LibraryEffect.NavigateToPlaylistDetail(intent.playlistId))
+                }
+            }
             is LibraryIntent.PlaylistMenuClicked -> sendEffect(
                 LibraryEffect.ShowMessage("Çalma listesi seçenekleri yakında eklenecek."),
             )
@@ -52,11 +61,23 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             libraryRepository.loadPlaylists()
-                .onSuccess { playlists ->
+                .onSuccess { apiPlaylists ->
+                    val likedSongsItem = LibraryPlaylistItem(
+                        id = LIKED_SONGS_ID,
+                        title = "Beğenilen Şarkılar",
+                        songCount = FavoritesStorage.savedSongsList.size,
+                        gradientStartColor = 0xFFFFB1C8,
+                        gradientEndColor = 0xFFEFBD94,
+                        isPinned = true,
+                        showsHeartIcon = true
+                    )
+                    
+                    val combinedList = listOf(likedSongsItem) + apiPlaylists
+                    
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            playlists = playlists,
+                            playlists = combinedList,
                         )
                     }
                 }

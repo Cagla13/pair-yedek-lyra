@@ -1,11 +1,14 @@
 package com.example.lyraapp.data.player
 
 import android.content.Context
+import android.content.Intent
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.lyraapp.data.remote.LyraApiService
 import com.example.lyraapp.data.remote.dto.RecordPlayBody
+import com.example.lyraapp.service.LyraMediaService
 import com.example.lyraapp.ui.favorites.FavoritesStorage
 import com.example.lyraapp.ui.favorites.SongUiModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -24,12 +27,12 @@ import javax.inject.Singleton
 
 @Singleton
 class MediaPlayerRepository @Inject constructor(
-    @ApplicationContext context: Context,
+    @ApplicationContext private val context: Context,
+    private val player: ExoPlayer,
     private val api: LyraApiService,
 ) : PlayerRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val player: ExoPlayer = ExoPlayer.Builder(context).build()
 
     private val _playbackState = MutableStateFlow(PlaybackState())
     override val playbackState: StateFlow<PlaybackState> = _playbackState.asStateFlow()
@@ -52,6 +55,18 @@ class MediaPlayerRepository @Inject constructor(
             },
         )
         scope.launch { observeProgress() }
+        
+        // Başlangıçta servisi tetikle
+        startMediaService()
+    }
+
+    private fun startMediaService() {
+        val intent = Intent(context, LyraMediaService::class.java)
+        try {
+            context.startService(intent)
+        } catch (e: Exception) {
+            // Android 12+ kısıtlamaları için catch
+        }
     }
 
     override suspend fun playTrack(
@@ -124,9 +139,26 @@ class MediaPlayerRepository @Inject constructor(
         val track = queue.getOrNull(currentIndex) ?: return
         val streamUrl = api.getStreamUrl(track.id).data.url
         withContext(Dispatchers.Main.immediate) {
-            player.setMediaItem(MediaItem.fromUri(streamUrl))
+            // Bildirim için metadata oluştur
+            val mediaMetadata = MediaMetadata.Builder()
+                .setTitle(track.title)
+                .setArtist(track.artist)
+                .setDisplayTitle(track.title)
+                .setSubtitle(track.artist)
+                .build()
+
+            val mediaItem = MediaItem.Builder()
+                .setUri(streamUrl)
+                .setMediaId(track.id)
+                .setMediaMetadata(mediaMetadata)
+                .build()
+            
+            player.setMediaItem(mediaItem)
             player.prepare()
             player.play()
+
+            // Her yeni parça başladığında servisin aktif olduğundan emin ol
+            startMediaService()
         }
         val isFavorite = FavoritesStorage.savedSongsList.any { it.id == track.id }
         _playbackState.value = PlaybackState(
