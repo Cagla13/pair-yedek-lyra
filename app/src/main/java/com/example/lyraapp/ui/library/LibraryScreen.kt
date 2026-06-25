@@ -68,6 +68,10 @@ fun LibraryRoute(
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
+        viewModel.onIntent(LibraryIntent.RetryLoad)
+    }
+
+    LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 LibraryEffect.NavigateToSearch -> onNavigateToSearch()

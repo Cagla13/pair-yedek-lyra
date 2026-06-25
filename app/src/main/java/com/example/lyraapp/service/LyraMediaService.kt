@@ -35,7 +35,7 @@ class LyraMediaService : MediaSessionService() {
             .setSessionActivity(pendingIntent)
             .build()
             
-        mediaSession?.let { addSession(it) }git add .
+        mediaSession?.let { addSession(it) }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {

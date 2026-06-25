@@ -1,7 +1,9 @@
+
 package com.example.lyraapp.data.remote
 
 import com.example.lyraapp.data.remote.dto.ApiEnvelope
 import com.example.lyraapp.data.remote.dto.AuthSessionDto
+import com.example.lyraapp.data.remote.dto.CreatePlaylistRequest
 import com.example.lyraapp.data.remote.dto.OtpRequestBody
 import com.example.lyraapp.data.remote.dto.OtpRequestDataDto
 import com.example.lyraapp.data.remote.dto.OtpVerifyBody
@@ -15,6 +17,7 @@ import com.example.lyraapp.data.remote.dto.SongsResponseDto
 import com.example.lyraapp.data.remote.dto.StreamUrlDto
 import com.example.lyraapp.data.remote.dto.UpdateProfileBody
 import com.example.lyraapp.data.remote.dto.UserDto
+import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
@@ -71,6 +74,11 @@ interface LyraApiService {
     suspend fun getPlaylist(
         @Path("id") playlistId: String,
     ): ApiEnvelope<PlaylistWithSongsDto>
+
+    @POST("api/v1/me/playlists")
+    suspend fun createPlaylist(
+        @Body request: CreatePlaylistRequest
+    ): Response<Unit>
 
     @GET("api/v1/songs")
     suspend fun searchSongs(

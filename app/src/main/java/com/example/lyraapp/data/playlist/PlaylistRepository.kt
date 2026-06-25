@@ -1,8 +1,10 @@
+
 package com.example.lyraapp.data.playlist
 
 import com.example.lyraapp.data.home.formatDurationMs
 import com.example.lyraapp.data.remote.ApiErrorMapper
 import com.example.lyraapp.data.remote.LyraApiService
+import com.example.lyraapp.data.remote.dto.CreatePlaylistRequest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -52,6 +54,15 @@ class PlaylistRepository @Inject constructor(
         )
     } catch (exception: Exception) {
         Result.failure(IllegalArgumentException(ApiErrorMapper.toMessage(exception)))
+    }
+
+    suspend fun createNewPlaylist(name: String, description: String): Boolean = try {
+        val request = CreatePlaylistRequest(name, description)
+        val response = api.createPlaylist(request)
+        response.isSuccessful
+    } catch (e: Exception) {
+        e.printStackTrace()
+        false
     }
 
     private companion object {

@@ -1,15 +1,21 @@
+
 package com.example.lyraapp.ui.create_playlist
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.lyraapp.data.playlist.PlaylistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class CreatePlaylistViewModel @Inject constructor() : ViewModel() {
+class CreatePlaylistViewModel @Inject constructor(
+    private val playlistRepository: PlaylistRepository
+) : ViewModel() {
 
     private val _state = MutableStateFlow(CreatePlaylistContract.State())
     val state: StateFlow<CreatePlaylistContract.State> = _state.asStateFlow()
@@ -34,7 +40,15 @@ class CreatePlaylistViewModel @Inject constructor() : ViewModel() {
                 }
             }
             CreatePlaylistContract.Event.OnSaveClicked -> {
-
+                viewModelScope.launch {
+                    val currentState = _state.value
+                    if (currentState.playlistName.isNotBlank()) {
+                        playlistRepository.createNewPlaylist(
+                            name = currentState.playlistName,
+                            description = currentState.playlistDescription
+                        )
+                    }
+                }
             }
             CreatePlaylistContract.Event.OnCloseClicked -> {
 
