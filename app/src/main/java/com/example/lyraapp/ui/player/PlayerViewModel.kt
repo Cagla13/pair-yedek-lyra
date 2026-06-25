@@ -37,12 +37,20 @@ class PlayerViewModel @Inject constructor(
                         sourceTitle = track?.sourceTitle.orEmpty(),
                         isPlaying = playback.isPlaying,
                         isFavorite = playback.isFavorite,
+                        isDownloaded = playback.isDownloaded,
+                        isDownloading = playback.isDownloading,
                         progressMs = playback.progressMs,
                         durationMs = playback.durationMs,
                         shuffleEnabled = playback.shuffleEnabled,
                         repeatEnabled = playback.repeatEnabled,
                     )
                 }
+            }
+            .launchIn(viewModelScope)
+
+        playerRepository.errorEvents
+            .onEach { message ->
+                _effect.send(PlayerEffect.ShowErrorMessage(message))
             }
             .launchIn(viewModelScope)
     }
@@ -69,6 +77,9 @@ class PlayerViewModel @Inject constructor(
             }
             PlayerIntent.SkipNext -> viewModelScope.launch {
                 playerRepository.skipNext()
+            }
+            PlayerIntent.Download -> viewModelScope.launch {
+                playerRepository.downloadTrack()
             }
             is PlayerIntent.SeekTo -> viewModelScope.launch {
                 playerRepository.seekTo(intent.progressMs)

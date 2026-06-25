@@ -9,6 +9,8 @@ data class PlayerUiState(
     val sourceTitle: String = "",
     val isPlaying: Boolean = false,
     val isFavorite: Boolean = false,
+    val isDownloaded: Boolean = false,
+    val isDownloading: Boolean = false,
     val progressMs: Long = 0L,
     val durationMs: Long = 0L,
     val shuffleEnabled: Boolean = false,
@@ -24,9 +26,11 @@ sealed interface PlayerIntent {
     data object ToggleRepeat : PlayerIntent
     data object SkipPrevious : PlayerIntent
     data object SkipNext : PlayerIntent
+    data object Download : PlayerIntent
     data class SeekTo(val progressMs: Long) : PlayerIntent
 }
 
 sealed interface PlayerEffect {
     data object NavigateBack : PlayerEffect
+    data class ShowErrorMessage(val message: String) : PlayerEffect
 }
