@@ -1,5 +1,6 @@
 package com.example.lyraapp.ui.player
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,6 +16,8 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Repeat
@@ -22,6 +25,7 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.outlined.Cast
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,11 +60,15 @@ fun PlayerRoute(
     viewModel: PlayerViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 PlayerEffect.NavigateBack -> onNavigateBack()
+                is PlayerEffect.ShowErrorMessage -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -163,7 +172,11 @@ fun PlayerScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            PlayerBottomActions()
+            PlayerBottomActions(
+                isDownloaded = state.isDownloaded,
+                isDownloading = state.isDownloading,
+                onDownload = { onIntent(PlayerIntent.Download) }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -323,7 +336,11 @@ private fun PlayerControlsRow(
 }
 
 @Composable
-private fun PlayerBottomActions() {
+private fun PlayerBottomActions(
+    isDownloaded: Boolean,
+    isDownloading: Boolean,
+    onDownload: () -> Unit
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -335,6 +352,25 @@ private fun PlayerBottomActions() {
                 contentDescription = "Cihaz",
                 tint = Color.White.copy(alpha = 0.85f),
             )
+        }
+
+        IconButton(
+            onClick = onDownload,
+            enabled = !isDownloading
+        ) {
+            if (isDownloading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(
+                    imageVector = if (isDownloaded) Icons.Default.CheckCircle else Icons.Default.FileDownload,
+                    contentDescription = "İndir",
+                    tint = if (isDownloaded) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.85f),
+                )
+            }
         }
         
         IconButton(onClick = {}) {
