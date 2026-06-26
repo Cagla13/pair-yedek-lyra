@@ -119,7 +119,7 @@ class HomeViewModel @Inject constructor(
             homeRepository.loadHomeContent()
                 .onSuccess { content ->
                     cachedTracks = buildList {
-                        addAll(content.quickPicks)
+                        addAll(content.forYouMusic)
                         addAll(content.recentlyPlayed)
                         addAll(content.recommendations)
                     }.distinctBy { it.id }
@@ -128,8 +128,9 @@ class HomeViewModel @Inject constructor(
                         current.copy(
                             isLoading = false,
                             quickPicks = content.quickPicks,
+                            forYouMusic = content.forYouMusic,
                             recentlyPlayed = content.recentlyPlayed,
-                            customPlaylists = content.recommendations,
+                            recommendations = content.recommendations,
                         )
                     }
                 }

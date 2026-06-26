@@ -4,6 +4,7 @@ import com.example.lyraapp.ui.home.PlayableItem
 
 data class HomeContent(
     val quickPicks: List<PlayableItem> = emptyList(),
+    val forYouMusic: List<PlayableItem> = emptyList(),
     val recentlyPlayed: List<PlayableItem> = emptyList(),
     val recommendations: List<PlayableItem> = emptyList(),
 )

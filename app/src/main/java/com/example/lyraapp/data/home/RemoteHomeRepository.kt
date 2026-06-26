@@ -14,10 +14,12 @@ class RemoteHomeRepository @Inject constructor(
         val forYou = api.getForYou(limit = FOR_YOU_LIMIT).data
         val recentlyPlayed = api.getRecentlyPlayed(limit = RECENTLY_PLAYED_LIMIT).data
         val recommendations = api.getRecommendations(limit = RECOMMENDATIONS_LIMIT).data
+        val forYouItems = SongMapper.toPlayableItems(forYou)
 
         Result.success(
             HomeContent(
-                quickPicks = SongMapper.toPlayableItems(forYou),
+                quickPicks = forYouItems.take(QUICK_PICKS_COUNT),
+                forYouMusic = forYouItems,
                 recentlyPlayed = SongMapper.toPlayableItems(recentlyPlayed),
                 recommendations = SongMapper.toPlayableItems(recommendations),
             ),
@@ -27,7 +29,8 @@ class RemoteHomeRepository @Inject constructor(
     }
 
     private companion object {
-        const val FOR_YOU_LIMIT = 6
+        const val FOR_YOU_LIMIT = 10
+        const val QUICK_PICKS_COUNT = 6
         const val RECENTLY_PLAYED_LIMIT = 10
         const val RECOMMENDATIONS_LIMIT = 10
     }
