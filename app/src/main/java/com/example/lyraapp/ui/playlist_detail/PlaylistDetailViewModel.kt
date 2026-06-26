@@ -3,16 +3,19 @@ package com.example.lyraapp.ui.playlist_detail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.lyraapp.data.AuthRepository
+import com.example.lyraapp.data.favorites.FavoritesRepository
+import com.example.lyraapp.data.favorites.StoredFavorite
 import com.example.lyraapp.data.player.PlayerRepository
 import com.example.lyraapp.data.player.toPlaybackTrack
 import com.example.lyraapp.data.playlist.PlaylistRepository
-import com.example.lyraapp.ui.favorites.FavoritesStorage
 import com.example.lyraapp.ui.navigation.LyraDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -23,6 +26,8 @@ class PlaylistDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val playlistRepository: PlaylistRepository,
     private val playerRepository: PlayerRepository,
+    private val authRepository: AuthRepository,
+    private val favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
 
     private val playlistId: String =
@@ -35,6 +40,7 @@ class PlaylistDetailViewModel @Inject constructor(
     val navigateToPlayer = _navigateToPlayer.receiveAsFlow()
 
     private var playbackTracks: List<com.example.lyraapp.data.playlist.PlaylistDetailTrack> = emptyList()
+    private var isEditable: Boolean = false
 
     init {
         loadPlaylist()
@@ -44,8 +50,10 @@ class PlaylistDetailViewModel @Inject constructor(
         when (event) {
             PlaylistDetailContract.Event.OnPlayClicked -> playFromIndex(0)
             PlaylistDetailContract.Event.OnBackClicked -> Unit
+            PlaylistDetailContract.Event.OnRefreshClicked -> loadPlaylist()
             is PlaylistDetailContract.Event.OnTrackClicked -> playFromTrackId(event.trackId)
             is PlaylistDetailContract.Event.OnLikeClicked -> toggleLike(event.trackId)
+            is PlaylistDetailContract.Event.OnRemoveTrackClicked -> removeTrack(event.trackId)
             PlaylistDetailContract.Event.RetryLoad -> loadPlaylist()
         }
     }
@@ -53,20 +61,24 @@ class PlaylistDetailViewModel @Inject constructor(
     private fun loadPlaylist() {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
+            val currentUserId = authRepository.currentUser.first()?.id
+            val favorites = favoritesRepository.getFavorites().map { it.id }.toSet()
             playlistRepository.getPlaylistDetail(playlistId)
                 .onSuccess { content ->
                     playbackTracks = content.tracks
+                    isEditable = !content.ownerId.isNullOrBlank() && content.ownerId == currentUserId
                     _state.value = PlaylistDetailContract.State(
                         playlistTitle = content.title,
                         playlistDescription = content.description,
                         playlistInfo = content.info,
+                        isEditable = isEditable,
                         tracks = content.tracks.map { track ->
                             PlaylistDetailContract.Track(
                                 id = track.id,
                                 title = track.title,
                                 artist = track.artist,
                                 duration = track.duration,
-                                isLiked = FavoritesStorage.savedSongsList.any { it.id == track.id },
+                                isLiked = track.id in favorites,
                                 isPlaying = false,
                                 coverColor = track.coverColor,
                             )
@@ -80,6 +92,19 @@ class PlaylistDetailViewModel @Inject constructor(
                             isLoading = false,
                             errorMessage = error.message ?: "Çalma listesi yüklenemedi.",
                         )
+                    }
+                }
+        }
+    }
+
+    private fun removeTrack(trackId: String) {
+        if (!isEditable) return
+        viewModelScope.launch {
+            playlistRepository.removeTrackFromPlaylist(playlistId, trackId)
+                .onSuccess { loadPlaylist() }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(errorMessage = error.message ?: "Şarkı listeden kaldırılamadı.")
                     }
                 }
         }
@@ -113,26 +138,28 @@ class PlaylistDetailViewModel @Inject constructor(
 
     private fun toggleLike(trackId: String) {
         val track = _state.value.tracks.find { it.id == trackId } ?: return
-        val isLiked = FavoritesStorage.savedSongsList.any { it.id == trackId }
-        if (isLiked) {
-            FavoritesStorage.savedSongsList.removeAll { it.id == trackId }
-        } else {
-            FavoritesStorage.savedSongsList.add(
-                com.example.lyraapp.ui.favorites.SongUiModel(
+        viewModelScope.launch {
+            val parts = track.duration.split(":")
+            val durationMs = if (parts.size == 2) {
+                ((parts[0].toLongOrNull() ?: 0L) * 60 + (parts[1].toLongOrNull() ?: 0L)) * 1000
+            } else {
+                0L
+            }
+            val isLiked = favoritesRepository.toggle(
+                StoredFavorite(
                     id = track.id,
                     title = track.title,
                     artist = track.artist,
-                    duration = track.duration,
-                    isPlaying = track.isPlaying,
+                    durationMs = durationMs,
                 ),
             )
-        }
-        _state.update { current ->
-            current.copy(
-                tracks = current.tracks.map {
-                    if (it.id == trackId) it.copy(isLiked = !isLiked) else it
-                },
-            )
+            _state.update { current ->
+                current.copy(
+                    tracks = current.tracks.map {
+                        if (it.id == trackId) it.copy(isLiked = isLiked) else it
+                    },
+                )
+            }
         }
     }
 }

@@ -27,11 +27,13 @@ class AuthSessionStore @Inject constructor(
         val phone = preferences[USER_PHONE_KEY].orEmpty()
         val id = preferences[USER_ID_KEY].orEmpty()
         val profileCompleted = preferences[USER_PROFILE_COMPLETED_KEY]?.toBooleanStrictOrNull() ?: false
+        val birthDate = preferences[USER_BIRTH_DATE_KEY].orEmpty()
         UserProfile(
             id = id,
             firstName = firstName,
             lastName = lastName,
             phoneNumber = phone,
+            birthDate = birthDate,
             profileCompleted = profileCompleted,
         )
     }
@@ -39,6 +41,17 @@ class AuthSessionStore @Inject constructor(
     suspend fun hydrateTokenFromStorage() {
         val preferences = dataStore.data.first()
         authTokenHolder.accessToken = preferences[ACCESS_TOKEN_KEY]
+    }
+
+    suspend fun updateTokens(
+        accessToken: String,
+        refreshToken: String,
+    ) {
+        authTokenHolder.accessToken = accessToken
+        dataStore.edit { preferences ->
+            preferences[ACCESS_TOKEN_KEY] = accessToken
+            preferences[REFRESH_TOKEN_KEY] = refreshToken
+        }
     }
 
     suspend fun saveSession(
@@ -56,6 +69,7 @@ class AuthSessionStore @Inject constructor(
                 preferences[USER_FIRST_NAME_KEY] = dto.firstName.orEmpty()
                 preferences[USER_LAST_NAME_KEY] = dto.lastName.orEmpty()
                 preferences[USER_PROFILE_COMPLETED_KEY] = dto.profileCompleted.toString()
+                preferences[USER_BIRTH_DATE_KEY] = dto.birthDate.orEmpty()
             }
         }
     }
@@ -67,6 +81,7 @@ class AuthSessionStore @Inject constructor(
             preferences[USER_FIRST_NAME_KEY] = user.firstName.orEmpty()
             preferences[USER_LAST_NAME_KEY] = user.lastName.orEmpty()
             preferences[USER_PROFILE_COMPLETED_KEY] = user.profileCompleted.toString()
+            preferences[USER_BIRTH_DATE_KEY] = user.birthDate.orEmpty()
         }
     }
 
@@ -80,12 +95,15 @@ class AuthSessionStore @Inject constructor(
             preferences.remove(USER_FIRST_NAME_KEY)
             preferences.remove(USER_LAST_NAME_KEY)
             preferences.remove(USER_PROFILE_COMPLETED_KEY)
+            preferences.remove(USER_BIRTH_DATE_KEY)
             preferences.remove(CURRENT_USER_PHONE_KEY)
             preferences.remove(REGISTERED_USERS_KEY)
         }
     }
 
     suspend fun getRefreshToken(): String? = dataStore.data.first()[REFRESH_TOKEN_KEY]
+
+    suspend fun getAccessToken(): String? = dataStore.data.first()[ACCESS_TOKEN_KEY]
 
     private companion object {
         val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
@@ -95,6 +113,7 @@ class AuthSessionStore @Inject constructor(
         val USER_FIRST_NAME_KEY = stringPreferencesKey("user_first_name")
         val USER_LAST_NAME_KEY = stringPreferencesKey("user_last_name")
         val USER_PROFILE_COMPLETED_KEY = stringPreferencesKey("user_profile_completed")
+        val USER_BIRTH_DATE_KEY = stringPreferencesKey("user_birth_date")
     }
 }
 
@@ -103,5 +122,6 @@ internal fun UserDto.toProfile(): UserProfile = UserProfile(
     firstName = firstName.orEmpty(),
     lastName = lastName.orEmpty(),
     phoneNumber = phone,
+    birthDate = birthDate.orEmpty(),
     profileCompleted = profileCompleted,
 )

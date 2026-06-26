@@ -61,6 +61,7 @@ fun LibraryRoute(
     onNavigateToCreatePlaylist: () -> Unit,
     onNavigateToPlaylistDetail: (String) -> Unit,
     onNavigateToFavorites: () -> Unit,
+    onNavigateToPlayer: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -78,6 +79,7 @@ fun LibraryRoute(
                 LibraryEffect.NavigateToCreatePlaylist -> onNavigateToCreatePlaylist()
                 is LibraryEffect.NavigateToPlaylistDetail -> onNavigateToPlaylistDetail(effect.playlistId)
                 LibraryEffect.NavigateToFavorites -> onNavigateToFavorites()
+                LibraryEffect.NavigateToPlayer -> onNavigateToPlayer()
                 is LibraryEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
             }
         }
@@ -125,34 +127,36 @@ fun LibraryScreen(
                 onToggleViewMode = { onIntent(LibraryIntent.ToggleViewMode) },
             )
 
-            when (state.selectedFilter) {
-                LibraryFilter.Playlists -> {
+            when {
+                state.catalogTitle != null -> {
+                    CatalogSongsSection(
+                        title = state.catalogTitle,
+                        songs = state.catalogSongs,
+                        isLoading = state.isLoading,
+                        onBack = { onIntent(LibraryIntent.CatalogBackClicked) },
+                        onSongClick = { onIntent(LibraryIntent.CatalogSongClicked(it)) },
+                    )
+                }
+                state.selectedFilter == LibraryFilter.Playlists -> {
                     if (state.isLoading && state.playlists.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator()
                         }
                     } else if (state.errorMessage != null && state.playlists.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 20.dp),
-                            contentAlignment = Alignment.Center,
+                        ErrorBox(state.errorMessage, onRetry = { onIntent(LibraryIntent.RetryLoad) })
+                    } else if (state.isGridView) {
+                        androidx.compose.foundation.lazy.grid.LazyVerticalGrid(
+                            columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(2),
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = state.errorMessage,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = "Tekrar dene",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.clickable { onIntent(LibraryIntent.RetryLoad) },
+                            items(state.playlists.size, key = { state.playlists[it].id }) { index ->
+                                val playlist = state.playlists[index]
+                                LibraryPlaylistGridCard(
+                                    item = playlist,
+                                    onClick = { onIntent(LibraryIntent.PlaylistClicked(playlist.id)) },
                                 )
                             }
                         }
@@ -171,18 +175,44 @@ fun LibraryScreen(
                         }
                     }
                 }
-                LibraryFilter.Artists, LibraryFilter.Albums -> {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 20.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = "Bu bölüm yakında eklenecek.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
+                state.selectedFilter == LibraryFilter.Artists -> {
+                    if (state.isLoading && state.artists.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (state.errorMessage != null && state.artists.isEmpty()) {
+                        ErrorBox(state.errorMessage, onRetry = { onIntent(LibraryIntent.RetryLoad) })
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(state.artists, key = { it.name }) { artist ->
+                                CatalogRow(
+                                    title = artist.name,
+                                    subtitle = "${artist.songCount} şarkı",
+                                    onClick = { onIntent(LibraryIntent.ArtistClicked(artist.name)) },
+                                )
+                            }
+                        }
+                    }
+                }
+                state.selectedFilter == LibraryFilter.Albums -> {
+                    if (state.isLoading && state.albums.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (state.errorMessage != null && state.albums.isEmpty()) {
+                        ErrorBox(state.errorMessage, onRetry = { onIntent(LibraryIntent.RetryLoad) })
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(state.albums, key = { "${it.title}-${it.artist}" }) { album ->
+                                CatalogRow(
+                                    title = album.title,
+                                    subtitle = "${album.artist} • ${album.songCount} şarkı",
+                                    onClick = {
+                                        onIntent(LibraryIntent.AlbumClicked(album.title, album.artist))
+                                    },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -416,6 +446,112 @@ private fun LibraryPlaylistRow(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ErrorBox(message: String, onRetry: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(message, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Tekrar dene",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.clickable(onClick = onRetry),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CatalogRow(title: String, subtitle: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+@Composable
+private fun CatalogSongsSection(
+    title: String?,
+    songs: List<CatalogSongItem>,
+    isLoading: Boolean,
+    onBack: () -> Unit,
+    onSongClick: (String) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onBack)
+                .padding(horizontal = 20.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("← Geri", color = MaterialTheme.colorScheme.primary)
+        }
+        Text(
+            text = title.orEmpty(),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+        )
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        } else {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(songs, key = { it.id }) { song ->
+                    CatalogRow(
+                        title = song.title,
+                        subtitle = "${song.artist} • ${song.duration}",
+                        onClick = { onSongClick(song.id) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibraryPlaylistGridCard(item: LibraryPlaylistItem, onClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(Color(item.gradientStartColor), Color(item.gradientEndColor)),
+                    ),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (item.showsHeartIcon) {
+                Icon(LyraIcons.Favorite, contentDescription = null, tint = Color.White.copy(alpha = 0.9f))
+            }
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(item.title, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text("${item.songCount} şarkı", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
     }
 }
 

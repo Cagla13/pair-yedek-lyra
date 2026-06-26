@@ -2,12 +2,15 @@ package com.example.lyraapp.data.home
 
 import com.example.lyraapp.data.remote.ApiErrorMapper
 import com.example.lyraapp.data.remote.LyraApiService
+import com.example.lyraapp.data.playlist.PlaylistRepository
+import com.example.lyraapp.ui.home.PlayableItem
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class RemoteHomeRepository @Inject constructor(
     private val api: LyraApiService,
+    private val playlistRepository: PlaylistRepository,
 ) : HomeRepository {
 
     override suspend fun loadHomeContent(): Result<HomeContent> = try {
@@ -15,6 +18,7 @@ class RemoteHomeRepository @Inject constructor(
         val recentlyPlayed = api.getRecentlyPlayed(limit = RECENTLY_PLAYED_LIMIT).data
         val recommendations = api.getRecommendations(limit = RECOMMENDATIONS_LIMIT).data
         val forYouItems = SongMapper.toPlayableItems(forYou)
+        val featuredPlaylists = playlistRepository.loadPublicPlaylists().getOrDefault(emptyList())
 
         Result.success(
             HomeContent(
@@ -22,8 +26,30 @@ class RemoteHomeRepository @Inject constructor(
                 forYouMusic = forYouItems,
                 recentlyPlayed = SongMapper.toPlayableItems(recentlyPlayed),
                 recommendations = SongMapper.toPlayableItems(recommendations),
+                featuredPlaylists = featuredPlaylists,
             ),
         )
+    } catch (exception: Exception) {
+        Result.failure(IllegalArgumentException(ApiErrorMapper.toMessage(exception)))
+    }
+
+    override suspend fun loadRecentlyPlayed(limit: Int): Result<List<PlayableItem>> = try {
+        val recentlyPlayed = api.getRecentlyPlayed(limit = limit).data
+        Result.success(SongMapper.toPlayableItems(recentlyPlayed))
+    } catch (exception: Exception) {
+        Result.failure(IllegalArgumentException(ApiErrorMapper.toMessage(exception)))
+    }
+
+    override suspend fun loadForYou(limit: Int): Result<List<PlayableItem>> = try {
+        val forYou = api.getForYou(limit = limit).data
+        Result.success(SongMapper.toPlayableItems(forYou))
+    } catch (exception: Exception) {
+        Result.failure(IllegalArgumentException(ApiErrorMapper.toMessage(exception)))
+    }
+
+    override suspend fun loadRecommendations(limit: Int): Result<List<PlayableItem>> = try {
+        val recommendations = api.getRecommendations(limit = limit).data
+        Result.success(SongMapper.toPlayableItems(recommendations))
     } catch (exception: Exception) {
         Result.failure(IllegalArgumentException(ApiErrorMapper.toMessage(exception)))
     }

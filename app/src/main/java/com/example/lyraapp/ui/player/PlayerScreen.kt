@@ -2,6 +2,7 @@ package com.example.lyraapp.ui.player
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.CheckCircle
@@ -32,9 +36,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +65,7 @@ import com.example.lyraapp.ui.theme.LyraAppTheme
 @Composable
 fun PlayerRoute(
     onNavigateBack: () -> Unit,
+    onNavigateToSongDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PlayerViewModel = hiltViewModel(),
 ) {
@@ -66,11 +76,24 @@ fun PlayerRoute(
         viewModel.effect.collect { effect ->
             when (effect) {
                 PlayerEffect.NavigateBack -> onNavigateBack()
+                is PlayerEffect.NavigateToSongDetail -> onNavigateToSongDetail(effect.songId)
                 is PlayerEffect.ShowErrorMessage -> {
                     Toast.makeText(context, effect.message, Toast.LENGTH_LONG).show()
                 }
+                is PlayerEffect.ShowMessage -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                }
             }
         }
+    }
+
+    if (uiState.showAddToPlaylistDialog) {
+        AddToPlaylistDialog(
+            playlists = uiState.userPlaylists,
+            isSubmitting = uiState.isAddingToPlaylist,
+            onDismiss = { viewModel.onIntent(PlayerIntent.DismissAddToPlaylist) },
+            onPlaylistSelected = { viewModel.onIntent(PlayerIntent.AddToPlaylist(it)) },
+        )
     }
 
     PlayerScreen(
@@ -102,6 +125,7 @@ fun PlayerScreen(
             PlayerTopBar(
                 sourceTitle = state.sourceTitle,
                 onCollapse = { onIntent(PlayerIntent.Collapse) },
+                onOpenSongDetail = { onIntent(PlayerIntent.OpenSongDetail) },
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -175,7 +199,9 @@ fun PlayerScreen(
             PlayerBottomActions(
                 isDownloaded = state.isDownloaded,
                 isDownloading = state.isDownloading,
-                onDownload = { onIntent(PlayerIntent.Download) }
+                onDownload = { onIntent(PlayerIntent.Download) },
+                onAddToPlaylist = { onIntent(PlayerIntent.OpenAddToPlaylist) },
+                onCast = { onIntent(PlayerIntent.ShowCastInfo) },
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -187,7 +213,10 @@ fun PlayerScreen(
 private fun PlayerTopBar(
     sourceTitle: String,
     onCollapse: () -> Unit,
+    onOpenSongDetail: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -222,12 +251,23 @@ private fun PlayerTopBar(
             )
         }
 
-        IconButton(onClick = {}) {
-            Icon(
-                imageVector = Icons.Default.MoreVert,
-                contentDescription = "Daha fazla",
-                tint = Color.White,
-            )
+        Box {
+            IconButton(onClick = { menuExpanded = true }) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "Daha fazla",
+                    tint = Color.White,
+                )
+            }
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("Şarkı detayı") },
+                    onClick = {
+                        menuExpanded = false
+                        onOpenSongDetail()
+                    },
+                )
+            }
         }
     }
 }
@@ -339,14 +379,16 @@ private fun PlayerControlsRow(
 private fun PlayerBottomActions(
     isDownloaded: Boolean,
     isDownloading: Boolean,
-    onDownload: () -> Unit
+    onDownload: () -> Unit,
+    onAddToPlaylist: () -> Unit,
+    onCast: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconButton(onClick = {}) {
+        IconButton(onClick = onCast) {
             Icon(
                 imageVector = Icons.Outlined.Cast,
                 contentDescription = "Cihaz",
@@ -373,10 +415,10 @@ private fun PlayerBottomActions(
             }
         }
         
-        IconButton(onClick = {}) {
+        IconButton(onClick = onAddToPlaylist) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                contentDescription = "Kuyruk",
+                contentDescription = "Çalma listesine ekle",
                 tint = Color.White.copy(alpha = 0.85f),
             )
         }
@@ -388,6 +430,45 @@ private fun formatPlaybackTime(millis: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return "%d:%02d".format(minutes, seconds)
+}
+
+@Composable
+private fun AddToPlaylistDialog(
+    playlists: List<com.example.lyraapp.data.playlist.UserPlaylistOption>,
+    isSubmitting: Boolean,
+    onDismiss: () -> Unit,
+    onPlaylistSelected: (String) -> Unit,
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Çalma listesine ekle") },
+        text = {
+            if (playlists.isEmpty()) {
+                Text("Henüz çalma listen yok. Kütüphane'den yeni liste oluşturabilirsin.")
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    items(playlists.size) { index ->
+                        val playlist = playlists[index]
+                        Text(
+                            text = playlist.name,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable(enabled = !isSubmitting) { onPlaylistSelected(playlist.id) }
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text("Kapat")
+            }
+        },
+    )
 }
 
 @Preview

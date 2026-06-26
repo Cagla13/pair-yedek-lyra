@@ -35,6 +35,8 @@ class SearchViewModel @Inject constructor(
     val effect: SharedFlow<SearchContract.SideEffect> = _effect.asSharedFlow()
 
     private var searchJob: Job? = null
+    private var nextCursor: String? = null
+    private var activeQuery: String = ""
 
     fun onIntent(intent: SearchContract.Intent) {
         when (intent) {
@@ -54,6 +56,7 @@ class SearchViewModel @Inject constructor(
                 scheduleSearch(intent.genreName, replaceQuery = true)
             }
             is SearchContract.Intent.OnSongClick -> playSong(intent.songId)
+            SearchContract.Intent.LoadMoreResults -> loadMoreResults()
         }
     }
 
@@ -67,30 +70,60 @@ class SearchViewModel @Inject constructor(
     private fun scheduleSearch(query: String, replaceQuery: Boolean = false) {
         searchJob?.cancel()
         if (query.isBlank()) {
-            _state.update { it.copy(searchResults = emptyList(), isLoading = false) }
+            nextCursor = null
+            activeQuery = ""
+            _state.update { it.copy(searchResults = emptyList(), isLoading = false, hasMoreResults = false) }
             return
         }
         searchJob = viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             delay(350)
+            activeQuery = query
             searchRepository.searchSongs(query)
-                .onSuccess { results ->
+                .onSuccess { page ->
+                    nextCursor = page.nextCursor
                     _state.update { current ->
                         current.copy(
                             searchQuery = if (replaceQuery) query else current.searchQuery,
-                            searchResults = results,
+                            searchResults = page.items,
                             isLoading = false,
+                            hasMoreResults = page.nextCursor != null,
                         )
                     }
                 }
                 .onFailure { error ->
+                    nextCursor = null
                     _state.update {
                         it.copy(
                             isLoading = false,
                             errorMessage = error.message,
                             searchResults = emptyList(),
+                            hasMoreResults = false,
                         )
                     }
+                }
+        }
+    }
+
+    private fun loadMoreResults() {
+        val cursor = nextCursor ?: return
+        if (_state.value.isLoadingMore || activeQuery.isBlank()) return
+        viewModelScope.launch {
+            _state.update { it.copy(isLoadingMore = true) }
+            searchRepository.searchSongs(activeQuery, cursor = cursor)
+                .onSuccess { page ->
+                    nextCursor = page.nextCursor
+                    _state.update { current ->
+                        current.copy(
+                            searchResults = current.searchResults + page.items,
+                            isLoadingMore = false,
+                            hasMoreResults = page.nextCursor != null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update { it.copy(isLoadingMore = false) }
+                    _effect.emit(SearchContract.SideEffect.ShowToast(error.message ?: "Daha fazla sonuç yüklenemedi."))
                 }
         }
     }

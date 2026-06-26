@@ -14,11 +14,15 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CreatePlaylistViewModel @Inject constructor(
-    private val playlistRepository: PlaylistRepository
+    private val playlistRepository: PlaylistRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CreatePlaylistContract.State())
     val state: StateFlow<CreatePlaylistContract.State> = _state.asStateFlow()
+
+    init {
+        loadAvailableTracks()
+    }
 
     fun onEvent(event: CreatePlaylistContract.Event) {
         when (event) {
@@ -39,19 +43,61 @@ class CreatePlaylistViewModel @Inject constructor(
                     currentState.copy(availableTracks = updatedTracks)
                 }
             }
-            CreatePlaylistContract.Event.OnSaveClicked -> {
-                viewModelScope.launch {
-                    val currentState = _state.value
-                    if (currentState.playlistName.isNotBlank()) {
-                        playlistRepository.createNewPlaylist(
-                            name = currentState.playlistName,
-                            description = currentState.playlistDescription
+            CreatePlaylistContract.Event.OnSaveClicked -> savePlaylist()
+            CreatePlaylistContract.Event.OnCloseClicked -> Unit
+            CreatePlaylistContract.Event.RetryLoadTracks -> loadAvailableTracks()
+        }
+    }
+
+    private fun loadAvailableTracks() {
+        viewModelScope.launch {
+            _state.update { it.copy(isLoadingTracks = true, errorMessage = null) }
+            playlistRepository.loadSelectableSongs()
+                .onSuccess { tracks ->
+                    _state.update {
+                        it.copy(
+                            isLoadingTracks = false,
+                            availableTracks = tracks.map { track ->
+                                CreatePlaylistContract.SelectableTrack(
+                                    id = track.id,
+                                    title = track.title,
+                                    artist = track.artist,
+                                    coverColor = track.coverColor,
+                                )
+                            },
                         )
                     }
                 }
-            }
-            CreatePlaylistContract.Event.OnCloseClicked -> {
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isLoadingTracks = false,
+                            errorMessage = error.message ?: "Şarkılar yüklenemedi.",
+                        )
+                    }
+                }
+        }
+    }
 
+    private fun savePlaylist() {
+        viewModelScope.launch {
+            val currentState = _state.value
+            if (currentState.playlistName.isBlank() || currentState.isSaving) return@launch
+
+            _state.update { it.copy(isSaving = true, errorMessage = null) }
+            playlistRepository.createNewPlaylistWithTracks(
+                name = currentState.playlistName,
+                description = currentState.playlistDescription,
+                songIds = currentState.selectedTrackIds,
+            ).onSuccess {
+                _state.update { it.copy(isSaving = false, isSaved = true) }
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isSaving = false,
+                        errorMessage = error.message ?: "Çalma listesi oluşturulamadı.",
+                    )
+                }
             }
         }
     }

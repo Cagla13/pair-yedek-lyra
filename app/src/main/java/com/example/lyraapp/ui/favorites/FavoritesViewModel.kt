@@ -2,64 +2,79 @@ package com.example.lyraapp.ui.favorites
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.lyraapp.data.favorites.FavoritesRepository
+import com.example.lyraapp.data.favorites.FavoritesRepository.Companion.toUiModel
+import com.example.lyraapp.data.favorites.StoredFavorite
+import com.example.lyraapp.data.player.PlayerRepository
+import com.example.lyraapp.data.player.toPlaybackTrack
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
-import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @HiltViewModel
-class FavoritesViewModel @Inject constructor() : ViewModel() {
+class FavoritesViewModel @Inject constructor(
+    private val favoritesRepository: FavoritesRepository,
+    private val playerRepository: PlayerRepository,
+) : ViewModel() {
 
-    private val _state = MutableStateFlow<FavoritesContract.State>(FavoritesContract.State())
+    private val _state = MutableStateFlow(FavoritesContract.State())
     val state: StateFlow<FavoritesContract.State> = _state.asStateFlow()
 
-    private val _effect = MutableSharedFlow<FavoritesContract.SideEffect>()
-    val effect: SharedFlow<FavoritesContract.SideEffect> = _effect.asSharedFlow()
+    private val _effect = Channel<FavoritesContract.SideEffect>(Channel.BUFFERED)
+    val effect = _effect.receiveAsFlow()
+
+    private var storedTracks: List<StoredFavorite> = emptyList()
 
     init {
-        refreshFavorites()
-    }
-
-    // Ortak depodaki verileri ve milimetrik saniye hesabını arayüze senkronize eder
-    fun refreshFavorites() {
-        _state.update {
-            it.copy(
-                songs = FavoritesStorage.savedSongsList.toList(),
-                totalSongsCount = FavoritesStorage.savedSongsList.size,
-                totalDurationText = FavoritesStorage.getTotalDurationText()
-            )
+        viewModelScope.launch {
+            favoritesRepository.favorites.collect { favorites ->
+                storedTracks = favorites
+                refreshState()
+            }
         }
     }
 
     fun onIntent(intent: FavoritesContract.Intent) {
         when (intent) {
-            is FavoritesContract.Intent.OnSongClick -> {
-                FavoritesStorage.savedSongsList.indices.forEach { i ->
-                    val song = FavoritesStorage.savedSongsList[i]
-                    FavoritesStorage.savedSongsList[i] = song.copy(isPlaying = song.id == intent.songId)
-                }
-                refreshFavorites()
+            is FavoritesContract.Intent.OnSongClick -> playTrack(intent.songId, shuffle = false)
+            is FavoritesContract.Intent.OnRemoveFromFavorites -> viewModelScope.launch {
+                favoritesRepository.remove(intent.songId)
+                _effect.send(FavoritesContract.SideEffect.ShowToast("Favorilerden kaldırıldı"))
             }
-            is FavoritesContract.Intent.OnRemoveFromFavorites -> {
-                FavoritesStorage.savedSongsList.removeAll { it.id == intent.songId }
-                refreshFavorites()
+            FavoritesContract.Intent.OnPlayAllClick -> playTrack(storedTracks.firstOrNull()?.id.orEmpty(), shuffle = false)
+            FavoritesContract.Intent.OnShuffleClick -> playTrack(storedTracks.firstOrNull()?.id.orEmpty(), shuffle = true)
+        }
+    }
 
-                viewModelScope.launch {
-                    _effect.emit(FavoritesContract.SideEffect.ShowToast("Favorilerden kaldırıldı"))
-                }
-            }
-            FavoritesContract.Intent.OnPlayAllClick -> {
-                viewModelScope.launch { _effect.emit(FavoritesContract.SideEffect.ShowToast("Tüm şarkılar oynatılıyor...")) }
-            }
-            FavoritesContract.Intent.OnShuffleClick -> {
-                viewModelScope.launch { _effect.emit(FavoritesContract.SideEffect.ShowToast("Karışık çalma açıldı")) }
-            }
+    private fun playTrack(trackId: String, shuffle: Boolean) {
+        if (storedTracks.isEmpty() || trackId.isBlank()) return
+        viewModelScope.launch {
+            val queue = if (shuffle) storedTracks.shuffled() else storedTracks
+            val tracks = queue.map { it.toPlaybackTrack() }
+            val selected = tracks.find { it.id == trackId } ?: tracks.first()
+            val index = tracks.indexOfFirst { it.id == selected.id }.coerceAtLeast(0)
+            playerRepository.playTrack(track = tracks[index], queue = tracks, startIndex = index)
+            _effect.send(FavoritesContract.SideEffect.NavigateToPlayer)
+        }
+    }
+
+    private fun refreshState() {
+        val totalMs = storedTracks.sumOf { it.durationMs }
+        val totalSeconds = totalMs / 1000
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        _state.update {
+            it.copy(
+                songs = storedTracks.map { favorite -> favorite.toUiModel() },
+                totalSongsCount = storedTracks.size,
+                totalDurationText = "${storedTracks.size} şarkı • ${minutes} dk ${seconds} sn",
+            )
         }
     }
 }

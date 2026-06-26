@@ -33,6 +33,7 @@ class HomeViewModel @Inject constructor(
     val effect: Flow<HomeEffect> = _effect.receiveAsFlow()
 
     private var cachedTracks: List<PlayableItem> = emptyList()
+    private var skipNextHomeResumeRefresh = true
 
     init {
         observeCurrentUser()
@@ -88,7 +89,21 @@ class HomeViewModel @Inject constructor(
             HomeIntent.ProfileClicked -> viewModelScope.launch {
                 _effect.send(HomeEffect.NavigateToProfile)
             }
-            HomeIntent.SeeAllRecentlyPlayedClicked -> Unit
+            HomeIntent.SeeAllRecentlyPlayedClicked -> viewModelScope.launch {
+                _effect.send(HomeEffect.NavigateToRecentlyPlayed)
+            }
+            HomeIntent.SeeAllForYouClicked -> viewModelScope.launch {
+                _effect.send(HomeEffect.NavigateToForYou)
+            }
+            HomeIntent.SeeAllRecommendationsClicked -> viewModelScope.launch {
+                _effect.send(HomeEffect.NavigateToRecommendations)
+            }
+            HomeIntent.SeeAllFeaturedPlaylistsClicked -> viewModelScope.launch {
+                _effect.send(HomeEffect.NavigateToFeaturedPlaylists)
+            }
+            is HomeIntent.FeaturedPlaylistClicked -> viewModelScope.launch {
+                _effect.send(HomeEffect.NavigateToPlaylistDetail(intent.playlistId))
+            }
             HomeIntent.MiniPlayerClicked -> viewModelScope.launch {
                 _effect.send(HomeEffect.NavigateToPlayer)
             }
@@ -96,7 +111,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun checkCurrentTrackFavoriteStatus() = Unit
+    fun onHomeResumed() {
+        if (skipNextHomeResumeRefresh) {
+            skipNextHomeResumeRefresh = false
+            return
+        }
+        refreshRecentlyPlayed()
+    }
 
     private fun playTrack(itemId: String) {
         val selected = cachedTracks.find { it.id == itemId } ?: return
@@ -131,6 +152,7 @@ class HomeViewModel @Inject constructor(
                             forYouMusic = content.forYouMusic,
                             recentlyPlayed = content.recentlyPlayed,
                             recommendations = content.recommendations,
+                            featuredPlaylists = content.featuredPlaylists,
                         )
                     }
                 }
@@ -148,5 +170,24 @@ class HomeViewModel @Inject constructor(
                     )
                 }
         }
+    }
+
+    private fun refreshRecentlyPlayed() {
+        viewModelScope.launch {
+            homeRepository.loadRecentlyPlayed(limit = RECENTLY_PLAYED_LIMIT)
+                .onSuccess { items ->
+                    cachedTracks = buildList {
+                        addAll(_uiState.value.forYouMusic)
+                        addAll(items)
+                        addAll(_uiState.value.recommendations)
+                    }.distinctBy { it.id }
+
+                    _uiState.update { it.copy(recentlyPlayed = items) }
+                }
+        }
+    }
+
+    private companion object {
+        const val RECENTLY_PLAYED_LIMIT = 10
     }
 }

@@ -22,6 +22,8 @@ object SearchContract {
         ),
         val searchResults: List<SearchSongItem> = emptyList(),
         val isLoading: Boolean = false,
+        val isLoadingMore: Boolean = false,
+        val hasMoreResults: Boolean = false,
         val errorMessage: String? = null,
     ) {
         val showResults: Boolean get() = searchQuery.isNotBlank()
@@ -32,6 +34,7 @@ object SearchContract {
         data class OnCategorySelected(val category: String) : Intent
         data class OnGenreClick(val genreName: String) : Intent
         data class OnSongClick(val songId: String) : Intent
+        data object LoadMoreResults : Intent
     }
 
     sealed interface SideEffect {

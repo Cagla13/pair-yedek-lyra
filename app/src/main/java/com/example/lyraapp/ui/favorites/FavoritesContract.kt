@@ -25,5 +25,6 @@ class FavoritesContract {
 
     sealed interface SideEffect {
         data class ShowToast(val message: String) : SideEffect
+        data object NavigateToPlayer : SideEffect
     }
 }

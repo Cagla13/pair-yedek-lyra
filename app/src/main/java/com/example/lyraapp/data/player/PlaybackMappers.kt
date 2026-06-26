@@ -5,14 +5,26 @@ import com.example.lyraapp.data.remote.dto.SongDto
 import com.example.lyraapp.data.search.SearchSongItem
 import com.example.lyraapp.ui.home.PlayableItem
 
-fun SongDto.toPlaybackTrack(sourceTitle: String = album ?: "Lyra"): PlaybackTrack = PlaybackTrack(
+fun PlaybackTrack.durationLabel(): String = formatDurationMs(durationMs)
+
+fun com.example.lyraapp.data.favorites.StoredFavorite.toPlaybackTrack(): PlaybackTrack = PlaybackTrack(
     id = id,
     title = title,
     artist = artist,
-    album = album.orEmpty(),
-    sourceTitle = sourceTitle,
+    album = artist,
+    sourceTitle = "Favoriler",
     durationMs = durationMs,
 )
+
+fun com.example.lyraapp.data.remote.dto.SongDto.toPlaybackTrack(sourceTitle: String = album ?: "Lyra"): PlaybackTrack =
+    PlaybackTrack(
+        id = id,
+        title = title,
+        artist = artist,
+        album = album.orEmpty(),
+        sourceTitle = sourceTitle,
+        durationMs = durationMs,
+    )
 
 fun PlayableItem.toPlaybackTrack(): PlaybackTrack = PlaybackTrack(
     id = id,
@@ -42,5 +54,3 @@ fun com.example.lyraapp.data.playlist.PlaylistDetailTrack.toPlaybackTrack(
     sourceTitle = sourceTitle,
     durationMs = durationMs,
 )
-
-fun PlaybackTrack.durationLabel(): String = formatDurationMs(durationMs)

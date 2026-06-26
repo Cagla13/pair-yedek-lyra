@@ -5,6 +5,7 @@ data class UserProfile(
     val firstName: String,
     val lastName: String,
     val phoneNumber: String,
+    val birthDate: String = "",
     val profileCompleted: Boolean = true,
 ) {
     val fullName: String

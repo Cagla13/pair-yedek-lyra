@@ -6,11 +6,11 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import com.example.lyraapp.data.favorites.FavoritesRepository
+import com.example.lyraapp.data.favorites.StoredFavorite
 import com.example.lyraapp.data.remote.LyraApiService
 import com.example.lyraapp.data.remote.dto.RecordPlayBody
 import com.example.lyraapp.service.LyraMediaService
-import com.example.lyraapp.ui.favorites.FavoritesStorage
-import com.example.lyraapp.ui.favorites.SongUiModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,12 +29,14 @@ import java.io.File
 import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.random.Random
 
 @Singleton
 class MediaPlayerRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val player: ExoPlayer,
     private val api: LyraApiService,
+    private val favoritesRepository: FavoritesRepository,
 ) : PlayerRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -47,6 +49,8 @@ class MediaPlayerRepository @Inject constructor(
 
     private var queue: List<PlaybackTrack> = emptyList()
     private var currentIndex: Int = 0
+    private var shuffledOrder: List<Int> = emptyList()
+    private var shufflePosition: Int = 0
 
     init {
         player.addListener(
@@ -57,23 +61,18 @@ class MediaPlayerRepository @Inject constructor(
 
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_ENDED) {
-                        scope.launch { skipNext() }
+                        scope.launch { handleTrackEnded() }
                     }
                 }
             },
         )
         scope.launch { observeProgress() }
-        
         startMediaService()
     }
 
     private fun startMediaService() {
         val intent = Intent(context, LyraMediaService::class.java)
-        try {
-            context.startService(intent)
-        } catch (e: Exception) {
-            // Android 12+ kısıtlamaları
-        }
+        runCatching { context.startService(intent) }
     }
 
     override suspend fun playTrack(
@@ -83,6 +82,7 @@ class MediaPlayerRepository @Inject constructor(
     ) {
         this.queue = if (queue.isEmpty()) listOf(track) else queue
         currentIndex = startIndex.coerceIn(0, this.queue.lastIndex)
+        rebuildShuffleOrder()
         startCurrentTrack()
     }
 
@@ -90,52 +90,67 @@ class MediaPlayerRepository @Inject constructor(
         withContext(Dispatchers.Main.immediate) {
             if (player.isPlaying) {
                 player.pause()
+            } else if (player.mediaItemCount > 0) {
+                player.play()
             } else {
-                if (player.mediaItemCount > 0) {
-                    player.play()
-                } else {
-                    _errorEvents.emit("Oynatılacak kaynak bulunamadı. İnternet bağlantınızı kontrol edin.")
-                }
+                _errorEvents.emit("Oynatılacak kaynak bulunamadı. İnternet bağlantınızı kontrol edin.")
             }
         }
     }
 
     override suspend fun toggleFavorite() {
         val track = _playbackState.value.track ?: return
-        val isCurrentlyFav = FavoritesStorage.savedSongsList.any { it.id == track.id }
-        if (isCurrentlyFav) {
-            FavoritesStorage.savedSongsList.removeAll { it.id == track.id }
-        } else {
-            FavoritesStorage.savedSongsList.add(
-                SongUiModel(
-                    id = track.id,
-                    title = track.title,
-                    artist = track.artist,
-                    duration = track.durationLabel(),
-                    isPlaying = _playbackState.value.isPlaying,
-                ),
-            )
-        }
-        _playbackState.update { it.copy(isFavorite = !isCurrentlyFav) }
+        val favorite = StoredFavorite(
+            id = track.id,
+            title = track.title,
+            artist = track.artist,
+            durationMs = track.durationMs,
+        )
+        val isFavorite = favoritesRepository.toggle(favorite)
+        _playbackState.update { it.copy(isFavorite = isFavorite) }
     }
 
     override suspend fun toggleShuffle() {
-        _playbackState.update { it.copy(shuffleEnabled = !it.shuffleEnabled) }
+        val enabled = !_playbackState.value.shuffleEnabled
+        if (enabled) rebuildShuffleOrder()
+        _playbackState.update { it.copy(shuffleEnabled = enabled) }
     }
 
     override suspend fun toggleRepeat() {
-        _playbackState.update { it.copy(repeatEnabled = !it.repeatEnabled) }
+        val nextMode = when (_playbackState.value.repeatMode) {
+            RepeatMode.OFF -> RepeatMode.ALL
+            RepeatMode.ALL -> RepeatMode.ONE
+            RepeatMode.ONE -> RepeatMode.OFF
+        }
+        withContext(Dispatchers.Main.immediate) {
+            player.repeatMode = when (nextMode) {
+                RepeatMode.OFF -> Player.REPEAT_MODE_OFF
+                RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+                RepeatMode.ONE -> Player.REPEAT_MODE_ONE
+            }
+        }
+        _playbackState.update { it.copy(repeatMode = nextMode) }
     }
 
     override suspend fun skipPrevious() {
         if (queue.isEmpty()) return
-        currentIndex = if (currentIndex > 0) currentIndex - 1 else queue.lastIndex
+        if (_playbackState.value.shuffleEnabled && shuffledOrder.size > 1) {
+            shufflePosition = if (shufflePosition > 0) shufflePosition - 1 else shuffledOrder.lastIndex
+            currentIndex = shuffledOrder[shufflePosition]
+        } else {
+            currentIndex = if (currentIndex > 0) currentIndex - 1 else queue.lastIndex
+        }
         startCurrentTrack()
     }
 
     override suspend fun skipNext() {
         if (queue.isEmpty()) return
-        currentIndex = if (currentIndex < queue.lastIndex) currentIndex + 1 else 0
+        if (_playbackState.value.shuffleEnabled && shuffledOrder.size > 1) {
+            shufflePosition = (shufflePosition + 1) % shuffledOrder.size
+            currentIndex = shuffledOrder[shufflePosition]
+        } else {
+            currentIndex = if (currentIndex < queue.lastIndex) currentIndex + 1 else 0
+        }
         startCurrentTrack()
     }
 
@@ -157,19 +172,45 @@ class MediaPlayerRepository @Inject constructor(
                 val streamUrl = api.getStreamUrl(track.id).data.url
                 val destination = File(context.filesDir, "downloads/${track.id}.mp3")
                 destination.parentFile?.mkdirs()
-
                 URL(streamUrl).openStream().use { input ->
-                    destination.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
+                    destination.outputStream().use { output -> input.copyTo(output) }
                 }
-                
                 _playbackState.update { it.copy(isDownloading = false, isDownloaded = true) }
             } catch (e: Exception) {
                 _playbackState.update { it.copy(isDownloading = false) }
                 _errorEvents.emit("İndirme sırasında bir hata oluştu: İnternet bağlantınızı kontrol edin.")
             }
         }
+    }
+
+    private suspend fun handleTrackEnded() {
+        when (_playbackState.value.repeatMode) {
+            RepeatMode.ONE -> {
+                withContext(Dispatchers.Main.immediate) {
+                    player.seekTo(0)
+                    player.play()
+                }
+            }
+            RepeatMode.ALL -> skipNext()
+            RepeatMode.OFF -> {
+                if (currentIndex < queue.lastIndex || _playbackState.value.shuffleEnabled) {
+                    skipNext()
+                } else {
+                    withContext(Dispatchers.Main.immediate) { player.pause() }
+                    _playbackState.update { it.copy(isPlaying = false) }
+                }
+            }
+        }
+    }
+
+    private fun rebuildShuffleOrder() {
+        if (queue.isEmpty()) {
+            shuffledOrder = emptyList()
+            shufflePosition = 0
+            return
+        }
+        shuffledOrder = queue.indices.shuffled(Random(System.currentTimeMillis()))
+        shufflePosition = shuffledOrder.indexOf(currentIndex).takeIf { it >= 0 } ?: 0
     }
 
     private fun isDownloaded(trackId: String): Boolean {
@@ -179,49 +220,39 @@ class MediaPlayerRepository @Inject constructor(
 
     private suspend fun startCurrentTrack() {
         val track = queue.getOrNull(currentIndex) ?: return
-        
-        // 1. Mevcut oynatmayı hemen durdur ve temizle
+
         withContext(Dispatchers.Main.immediate) {
             player.stop()
             player.clearMediaItems()
             player.seekTo(0)
         }
 
-        // 2. UI State'ini yeni parça bilgileriyle derhal güncelle (Çalmadan önce)
-        val isFavorite = FavoritesStorage.savedSongsList.any { it.id == track.id }
+        val isFavorite = favoritesRepository.isFavorite(track.id)
         val isLocal = isDownloaded(track.id)
-        
+
         _playbackState.update {
             it.copy(
                 track = track,
-                isPlaying = false, // Kaynak yüklenene kadar çalma
+                isPlaying = false,
                 isFavorite = isFavorite,
                 isDownloaded = isLocal,
                 progressMs = 0L,
                 durationMs = track.durationMs,
-                isVisible = true
+                isVisible = true,
             )
         }
 
-        // 3. Kaynak adresini belirle (Yerel veya Uzak)
-        val localFile = File(context.filesDir, "downloads/${track.id}.mp3")
         val streamUri = if (isLocal) {
-            localFile.absolutePath
+            File(context.filesDir, "downloads/${track.id}.mp3").absolutePath
         } else {
-            try {
-                api.getStreamUrl(track.id).data.url
-            } catch (e: Exception) {
-                null
-            }
+            runCatching { api.getStreamUrl(track.id).data.url }.getOrNull()
         }
 
-        // 4. Eğer kaynak bulunamadıysa (offline ve dosya yok) uyar ve dur
         if (streamUri == null) {
             _errorEvents.emit("Bu şarkı indirilmedi, internet bağlantınızı kontrol edin.")
             return
         }
 
-        // 5. Kaynak varsa oynatıcıyı hazırla ve başlat
         withContext(Dispatchers.Main.immediate) {
             val mediaMetadata = MediaMetadata.Builder()
                 .setTitle(track.title)
@@ -235,15 +266,18 @@ class MediaPlayerRepository @Inject constructor(
                 .setMediaId(track.id)
                 .setMediaMetadata(mediaMetadata)
                 .build()
-            
+
             player.setMediaItem(mediaItem)
+            player.repeatMode = when (_playbackState.value.repeatMode) {
+                RepeatMode.OFF -> Player.REPEAT_MODE_OFF
+                RepeatMode.ALL -> Player.REPEAT_MODE_ALL
+                RepeatMode.ONE -> Player.REPEAT_MODE_ONE
+            }
             player.prepare()
             player.play()
-
             startMediaService()
         }
 
-        // 6. Başarılı oynatma durumunda state'i güncelle
         _playbackState.update { it.copy(isPlaying = true) }
 
         scope.launch(Dispatchers.IO) {

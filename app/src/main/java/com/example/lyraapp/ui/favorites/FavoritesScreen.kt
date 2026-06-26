@@ -30,19 +30,19 @@ import kotlinx.coroutines.flow.collectLatest
 fun FavoritesScreen(
     viewModel: FavoritesViewModel,
     onNavigateBack: () -> Unit,
+    onNavigateToPlayer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
-    // Ekran her görünür olduğunda depodaki dinamik verileri sıcağı sıcağına tazeler
-    LaunchedEffect(key1 = true) {
-        viewModel.refreshFavorites()
+    LaunchedEffect(Unit) {
         viewModel.effect.collectLatest { effect ->
             when (effect) {
                 is FavoritesContract.SideEffect.ShowToast -> {
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
                 }
+                FavoritesContract.SideEffect.NavigateToPlayer -> onNavigateToPlayer()
             }
         }
     }
@@ -157,7 +157,7 @@ fun FavoritesScreen(
                     }
                 }
             } else {
-                items(state.songs) { song ->
+                items(state.songs, key = { it.id }) { song ->
                     SongListItem(
                         song = song,
                         onSongClick = { viewModel.onIntent(FavoritesContract.Intent.OnSongClick(song.id)) },

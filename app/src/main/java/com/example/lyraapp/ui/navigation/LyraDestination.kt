@@ -21,6 +21,18 @@ sealed class LyraDestination(val route: String) {
         const val PLAYLIST_ID_ARG = "playlistId"
     }
     data object CreatePlaylist : LyraDestination("create_playlist")
+    data object RecentlyPlayed : LyraDestination("recently_played")
+    data object HomeSection : LyraDestination("home_section/{section}") {
+        fun createRoute(section: String): String = "home_section/$section"
+
+        const val SECTION_ARG = "section"
+    }
+    data object EditProfile : LyraDestination("edit_profile")
+    data object SongDetail : LyraDestination("song_detail/{songId}") {
+        fun createRoute(songId: String): String = "song_detail/${Uri.encode(songId)}"
+
+        const val SONG_ID_ARG = "songId"
+    }
     data object Player : LyraDestination("player")
     data object NotificationPreview : LyraDestination("notification_preview")
 }

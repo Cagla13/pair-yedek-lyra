@@ -17,6 +17,7 @@ class PlaylistDetailContract {
         val playlistDescription: String = "",
         val playlistInfo: String = "",
         val tracks: List<Track> = emptyList(),
+        val isEditable: Boolean = false,
         val isLoading: Boolean = true,
         val errorMessage: String? = null,
     )
@@ -24,8 +25,10 @@ class PlaylistDetailContract {
     sealed class Event {
         data object OnPlayClicked : Event()
         data object OnBackClicked : Event()
+        data object OnRefreshClicked : Event()
         data class OnTrackClicked(val trackId: String) : Event()
         data class OnLikeClicked(val trackId: String) : Event()
+        data class OnRemoveTrackClicked(val trackId: String) : Event()
         data object RetryLoad : Event()
     }
 }

@@ -1,14 +1,18 @@
 package com.example.lyraapp.ui.navigation
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -17,7 +21,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.lyraapp.ui.profile.EditProfileRoute
 import com.example.lyraapp.ui.profile.ProfileRoute
+import com.example.lyraapp.ui.song_detail.SongDetailRoute
 import com.example.lyraapp.ui.auth.login.LoginRoute
 import com.example.lyraapp.ui.auth.otp.OtpRoute
 import com.example.lyraapp.ui.auth.register.RegisterRoute
@@ -26,11 +32,15 @@ import com.example.lyraapp.ui.create_playlist.CreatePlaylistViewModel
 import com.example.lyraapp.ui.favorites.FavoritesScreen
 import com.example.lyraapp.ui.favorites.FavoritesViewModel
 import com.example.lyraapp.ui.home.HomeRoute
+import com.example.lyraapp.ui.home_section.HomeSection
+import com.example.lyraapp.ui.home_section.HomeSectionRoute
 import com.example.lyraapp.ui.library.LibraryRoute
 import com.example.lyraapp.ui.player.LyraPlaybackBar
 import com.example.lyraapp.ui.player.PlayerRoute
 import com.example.lyraapp.ui.playlist_detail.PlaylistDetailScreen
+import com.example.lyraapp.ui.recently_played.RecentlyPlayedRoute
 import com.example.lyraapp.ui.search.SearchRoute
+import com.example.lyraapp.ui.session.SessionViewModel
 
 @Composable
 fun LyraNavHost(
@@ -54,6 +64,19 @@ fun LyraNavHost(
         LyraDestination.Favorites.route,
         LyraDestination.Profile.route,
     )
+
+    val sessionViewModel: SessionViewModel = hiltViewModel()
+    val isSessionReady by sessionViewModel.isReady.collectAsStateWithLifecycle()
+    val isLoggedIn by sessionViewModel.isLoggedIn.collectAsStateWithLifecycle()
+
+    if (!isSessionReady) {
+        Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    val startDestination = if (isLoggedIn) LyraDestination.Home.route else LyraDestination.Login.route
 
     Scaffold(
         bottomBar = {
@@ -87,7 +110,7 @@ fun LyraNavHost(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = LyraDestination.Login.route,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(LyraDestination.Login.route) {
@@ -149,6 +172,37 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToRecentlyPlayed = {
+                        navController.navigate(LyraDestination.RecentlyPlayed.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToForYou = {
+                        navController.navigate(
+                            LyraDestination.HomeSection.createRoute(HomeSection.FOR_YOU.routeKey),
+                        ) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToRecommendations = {
+                        navController.navigate(
+                            LyraDestination.HomeSection.createRoute(HomeSection.RECOMMENDATIONS.routeKey),
+                        ) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToFeaturedPlaylists = {
+                        navController.navigate(
+                            LyraDestination.HomeSection.createRoute(HomeSection.FEATURED_PLAYLISTS.routeKey),
+                        ) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToPlaylistDetail = { playlistId ->
+                        navController.navigate(LyraDestination.PlaylistDetail.createRoute(playlistId)) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
@@ -188,27 +242,108 @@ fun LyraNavHost(
                         navController.navigate(LyraDestination.Favorites.route) {
                             launchSingleTop = true
                         }
-                    }
+                    },
+                    onNavigateToPlayer = {
+                        navController.navigate(LyraDestination.Player.route) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
             composable(LyraDestination.Favorites.route) {
-                val favoritesViewModel: FavoritesViewModel = viewModel()
+                val favoritesViewModel: FavoritesViewModel = hiltViewModel()
                 FavoritesScreen(
                     viewModel = favoritesViewModel,
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPlayer = {
+                        navController.navigate(LyraDestination.Player.route) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
             composable(LyraDestination.Profile.route) {
-                ProfileRoute()
+                ProfileRoute(
+                    onNavigateToLogin = {
+                        navController.navigate(LyraDestination.Login.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToEditProfile = {
+                        navController.navigate(LyraDestination.EditProfile.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(LyraDestination.EditProfile.route) {
+                EditProfileRoute(onNavigateBack = { navController.popBackStack() })
+            }
+
+            composable(
+                route = LyraDestination.SongDetail.route,
+                arguments = listOf(
+                    navArgument(LyraDestination.SongDetail.SONG_ID_ARG) {
+                        type = NavType.StringType
+                    },
+                ),
+            ) {
+                SongDetailRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPlayer = {
+                        navController.navigate(LyraDestination.Player.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(LyraDestination.RecentlyPlayed.route) {
+                RecentlyPlayedRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPlayer = {
+                        navController.navigate(LyraDestination.Player.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+
+            composable(
+                route = LyraDestination.HomeSection.route,
+                arguments = listOf(
+                    navArgument(LyraDestination.HomeSection.SECTION_ARG) {
+                        type = NavType.StringType
+                    },
+                ),
+            ) {
+                HomeSectionRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPlayer = {
+                        navController.navigate(LyraDestination.Player.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onNavigateToPlaylistDetail = { playlistId ->
+                        navController.navigate(LyraDestination.PlaylistDetail.createRoute(playlistId)) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
             }
 
             composable(LyraDestination.Player.route) {
                 PlayerRoute(
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToSongDetail = { songId ->
+                        navController.navigate(LyraDestination.SongDetail.createRoute(songId)) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 

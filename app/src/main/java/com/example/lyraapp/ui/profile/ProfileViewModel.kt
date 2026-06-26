@@ -3,11 +3,15 @@ package com.example.lyraapp.ui.profile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.lyraapp.data.AuthRepository
+import com.example.lyraapp.data.library.LibraryRepository
+import com.example.lyraapp.data.settings.AppSettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -16,27 +20,77 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val libraryRepository: LibraryRepository,
+    private val appSettingsRepository: AppSettingsRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(ProfileUiState())
+    private val _uiState = MutableStateFlow(ProfileUiState(isLoading = true))
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     private val _effect = Channel<ProfileEffect>(Channel.BUFFERED)
     val effect = _effect.receiveAsFlow()
 
     init {
-        loadStaticProfileContent()
         observeCurrentUser()
+        observeSettings()
+        refreshProfile()
     }
 
     fun onIntent(intent: ProfileIntent) {
         when (intent) {
             ProfileIntent.SettingsClicked -> viewModelScope.launch {
-                _effect.send(ProfileEffect.ShowMessage("Ayarlar yakında eklenecek."))
+                _effect.send(ProfileEffect.ShowMessage("Tema ayarları aşağıda."))
             }
-            is ProfileIntent.SettingClicked -> viewModelScope.launch {
-                _effect.send(ProfileEffect.ShowMessage("Bu bölüm yakında eklenecek."))
+            ProfileIntent.EditProfileClicked -> viewModelScope.launch {
+                _effect.send(ProfileEffect.NavigateToEditProfile)
             }
+            is ProfileIntent.SettingClicked -> handleSettingClick(intent.id)
+            ProfileIntent.LogoutClicked -> logout()
+        }
+    }
+
+    private fun handleSettingClick(id: String) {
+        viewModelScope.launch {
+            when (id) {
+                "logout" -> logout()
+                "sound_quality" -> {
+                    appSettingsRepository.cycleSoundQuality()
+                    _effect.send(ProfileEffect.ShowMessage("Ses kalitesi güncellendi."))
+                }
+                "offline_download" -> {
+                    appSettingsRepository.toggleOfflineDownload()
+                    _effect.send(ProfileEffect.ShowMessage("Çevrimdışı indirme ayarı güncellendi."))
+                }
+                "notifications" -> {
+                    appSettingsRepository.toggleNotifications()
+                    _effect.send(ProfileEffect.ShowMessage("Bildirim ayarı güncellendi."))
+                }
+                "privacy", "help" -> {
+                    _effect.send(ProfileEffect.ShowMessage("Bu özellik yakında eklenecek."))
+                }
+            }
+        }
+    }
+
+    private fun refreshProfile() {
+        viewModelScope.launch {
+            authRepository.fetchCurrentUser()
+            val playlistCount = libraryRepository.loadPlaylists().getOrNull()?.size ?: 0
+            _uiState.update { current ->
+                current.copy(
+                    isLoading = false,
+                    stats = listOf(
+                        ProfileStat(value = playlistCount.toString(), label = "Çalma listesi"),
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun logout() {
+        viewModelScope.launch {
+            authRepository.logout()
+            _effect.send(ProfileEffect.NavigateToLogin)
         }
     }
 
@@ -54,46 +108,32 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    private fun loadStaticProfileContent() {
-        _uiState.value = ProfileUiState(
-            displayName = "",
-            handle = "",
-            isPremium = true,
-            avatarInitials = "",
-            stats = listOf(
-                ProfileStat(value = "127", label = "Çalma listesi"),
-                ProfileStat(value = "1.2B", label = "Takipçi"),
-                ProfileStat(value = "348", label = "Takip"),
-            ),
-            settings = listOf(
-                ProfileSettingItem(
-                    id = "sound_quality",
-                    title = "Ses kalitesi",
-                    value = "Yüksek",
-                    iconKey = ProfileSettingIcon.SoundQuality,
-                ),
-                ProfileSettingItem(
-                    id = "offline_download",
-                    title = "Çevrimdışı indirme",
-                    value = "Açık",
-                    iconKey = ProfileSettingIcon.OfflineDownload,
-                ),
-                ProfileSettingItem(
-                    id = "notifications",
-                    title = "Bildirimler",
-                    iconKey = ProfileSettingIcon.Notifications,
-                ),
-                ProfileSettingItem(
-                    id = "privacy",
-                    title = "Gizlilik",
-                    iconKey = ProfileSettingIcon.Privacy,
-                ),
-                ProfileSettingItem(
-                    id = "help",
-                    title = "Yardım ve destek",
-                    iconKey = ProfileSettingIcon.Help,
-                ),
-            ),
-        )
+    private fun observeSettings() {
+        appSettingsRepository.settings
+            .onEach { settings ->
+                _uiState.update {
+                    it.copy(
+                        settings = listOf(
+                            ProfileSettingItem("sound_quality", "Ses kalitesi", settings.soundQuality, ProfileSettingIcon.SoundQuality),
+                            ProfileSettingItem(
+                                "offline_download",
+                                "Çevrimdışı indirme",
+                                if (settings.offlineDownloadEnabled) "Açık" else "Kapalı",
+                                ProfileSettingIcon.OfflineDownload,
+                            ),
+                            ProfileSettingItem(
+                                "notifications",
+                                "Bildirimler",
+                                if (settings.notificationsEnabled) "Açık" else "Kapalı",
+                                ProfileSettingIcon.Notifications,
+                            ),
+                            ProfileSettingItem("privacy", "Gizlilik", iconKey = ProfileSettingIcon.Privacy),
+                            ProfileSettingItem("help", "Yardım ve destek", iconKey = ProfileSettingIcon.Help),
+                            ProfileSettingItem("logout", "Çıkış yap", iconKey = ProfileSettingIcon.Privacy),
+                        ),
+                    )
+                }
+            }
+            .launchIn(viewModelScope)
     }
 }

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -37,6 +38,12 @@ fun CreatePlaylistScreen(
     val state by viewModel.state.collectAsState()
     val activeColor = Color(0xFF4CAF50)
 
+    LaunchedEffect(state.isSaved) {
+        if (state.isSaved) {
+            onNavigateBack()
+        }
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -54,13 +61,21 @@ fun CreatePlaylistScreen(
                     Button(
                         onClick = {
                             viewModel.onEvent(CreatePlaylistContract.Event.OnSaveClicked)
-                            onNavigateBack()
                         },
+                        enabled = state.playlistName.isNotBlank() && !state.isSaving,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier.padding(end = 8.dp).height(36.dp)
                     ) {
-                        Text("Kaydet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        if (state.isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            Text("Kaydet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -138,39 +153,6 @@ fun CreatePlaylistScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-
-                        Icon(Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text("Herkese açık", color = MaterialTheme.colorScheme.onSurface, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                            Text("Profilinde görünür", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                        }
-                    }
-                    Switch(
-                        checked = state.isPublic,
-                        onCheckedChange = { viewModel.onEvent(CreatePlaylistContract.Event.OnPublicToggleChanged(it)) },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = activeColor,
-                            uncheckedThumbColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                            uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    )
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-                Divider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
@@ -182,8 +164,39 @@ fun CreatePlaylistScreen(
                 }
             }
 
-
-            items(state.availableTracks) { track ->
+            if (state.isLoadingTracks) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                }
+            } else if (state.availableTracks.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            text = state.errorMessage ?: "Gösterilecek şarkı bulunamadı.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(onClick = {
+                            viewModel.onEvent(CreatePlaylistContract.Event.RetryLoadTracks)
+                        }) {
+                            Text("Tekrar dene")
+                        }
+                    }
+                }
+            } else {
+                items(state.availableTracks) { track ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -220,6 +233,7 @@ fun CreatePlaylistScreen(
                             Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
                         }
                     }
+                }
                 }
             }
         }

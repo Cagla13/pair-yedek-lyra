@@ -40,25 +40,42 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.lyraapp.ui.icons.LyraIcons
+import com.example.lyraapp.ui.library.LibraryPlaylistItem
 
 
 @Composable
 fun HomeRoute(
     onNavigateToProfile: () -> Unit,
     onNavigateToPlayer: () -> Unit,
+    onNavigateToRecentlyPlayed: () -> Unit,
+    onNavigateToForYou: () -> Unit,
+    onNavigateToRecommendations: () -> Unit,
+    onNavigateToFeaturedPlaylists: () -> Unit,
+    onNavigateToPlaylistDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    LifecycleResumeEffect(Unit) {
+        viewModel.onHomeResumed()
+        onPauseOrDispose { }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 HomeEffect.NavigateToProfile -> onNavigateToProfile()
                 HomeEffect.NavigateToPlayer -> onNavigateToPlayer()
+                HomeEffect.NavigateToRecentlyPlayed -> onNavigateToRecentlyPlayed()
+                HomeEffect.NavigateToForYou -> onNavigateToForYou()
+                HomeEffect.NavigateToRecommendations -> onNavigateToRecommendations()
+                HomeEffect.NavigateToFeaturedPlaylists -> onNavigateToFeaturedPlaylists()
+                is HomeEffect.NavigateToPlaylistDetail -> onNavigateToPlaylistDetail(effect.playlistId)
                 is HomeEffect.ShowNotification -> snackbarHostState.showSnackbar(effect.message)
             }
         }
@@ -165,14 +182,17 @@ fun HomeScreen(
             item {
                 SectionHeader(
                     title = "Son çalınanlar",
-                    onSeeAllClick = { onIntent(HomeIntent.SeeAllRecentlyPlayedClicked) }
+                    onSeeAllClick = { onIntent(HomeIntent.SeeAllRecentlyPlayedClicked) },
                 )
                 HorizontalTrackList(items = state.recentlyPlayed, onItemClick = { onIntent(HomeIntent.TrackClicked(it)) })
             }
 
             // 4. Senin İçin Müzikler (for-you)
             item {
-                SectionHeader(title = "Senin için müzikler", onSeeAllClick = {})
+                SectionHeader(
+                    title = "Senin için müzikler",
+                    onSeeAllClick = { onIntent(HomeIntent.SeeAllForYouClicked) },
+                )
                 HorizontalTrackList(
                     items = state.forYouMusic,
                     onItemClick = { onIntent(HomeIntent.TrackClicked(it)) },
@@ -181,11 +201,28 @@ fun HomeScreen(
 
             // 5. Sana Önerilenler (recommendations)
             item {
-                SectionHeader(title = "Sana önerilenler", onSeeAllClick = {})
+                SectionHeader(
+                    title = "Sana önerilenler",
+                    onSeeAllClick = { onIntent(HomeIntent.SeeAllRecommendationsClicked) },
+                )
                 HorizontalTrackList(
                     items = state.recommendations,
                     onItemClick = { onIntent(HomeIntent.TrackClicked(it)) },
                 )
+            }
+
+            // 6. Öne çıkan çalma listeleri
+            if (state.featuredPlaylists.isNotEmpty()) {
+                item {
+                    SectionHeader(
+                        title = "Öne çıkan listeler",
+                        onSeeAllClick = { onIntent(HomeIntent.SeeAllFeaturedPlaylistsClicked) },
+                    )
+                    FeaturedPlaylistsRow(
+                        playlists = state.featuredPlaylists,
+                        onPlaylistClick = { onIntent(HomeIntent.FeaturedPlaylistClicked(it)) },
+                    )
+                }
             }
         }
     }
@@ -350,6 +387,56 @@ private fun HorizontalTrackList(items: List<PlayableItem>, onItemClick: (String)
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeaturedPlaylistsRow(
+    playlists: List<LibraryPlaylistItem>,
+    onPlaylistClick: (String) -> Unit,
+) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        items(playlists.size) { index ->
+            val playlist = playlists[index]
+            Column(
+                modifier = Modifier
+                    .width(140.dp)
+                    .clickable { onPlaylistClick(playlist.id) },
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(140.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    Color(playlist.gradientStartColor),
+                                    Color(playlist.gradientEndColor),
+                                ),
+                            ),
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = LyraIcons.Waveform,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(36.dp),
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = playlist.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }

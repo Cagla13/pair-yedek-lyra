@@ -10,6 +10,7 @@ data class HomeUiState(
     val forYouMusic: List<PlayableItem> = emptyList(),
     val recentlyPlayed: List<PlayableItem> = emptyList(),
     val recommendations: List<PlayableItem> = emptyList(),
+    val featuredPlaylists: List<com.example.lyraapp.ui.library.LibraryPlaylistItem> = emptyList(),
     val currentPlayingTrack: PlayableItem? = null,
     val isPlaying: Boolean = false,
     val isFavorite: Boolean = false,
@@ -32,7 +33,11 @@ sealed interface HomeIntent {
     data object TogglePlayPause : HomeIntent
     data object ToggleFavorite : HomeIntent
     data object ProfileClicked : HomeIntent
+    data class FeaturedPlaylistClicked(val playlistId: String) : HomeIntent
     data object SeeAllRecentlyPlayedClicked : HomeIntent
+    data object SeeAllForYouClicked : HomeIntent
+    data object SeeAllRecommendationsClicked : HomeIntent
+    data object SeeAllFeaturedPlaylistsClicked : HomeIntent
     data object MiniPlayerClicked : HomeIntent
     data object RetryLoad : HomeIntent
 }
@@ -40,5 +45,10 @@ sealed interface HomeIntent {
 sealed interface HomeEffect {
     data object NavigateToProfile : HomeEffect
     data object NavigateToPlayer : HomeEffect
+    data object NavigateToRecentlyPlayed : HomeEffect
+    data object NavigateToForYou : HomeEffect
+    data object NavigateToRecommendations : HomeEffect
+    data object NavigateToFeaturedPlaylists : HomeEffect
+    data class NavigateToPlaylistDetail(val playlistId: String) : HomeEffect
     data class ShowNotification(val message: String) : HomeEffect
 }

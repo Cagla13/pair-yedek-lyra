@@ -37,9 +37,13 @@ enum class ProfileSettingIcon {
 
 sealed interface ProfileIntent {
     data object SettingsClicked : ProfileIntent
+    data object EditProfileClicked : ProfileIntent
     data class SettingClicked(val id: String) : ProfileIntent
+    data object LogoutClicked : ProfileIntent
 }
 
 sealed interface ProfileEffect {
     data class ShowMessage(val message: String) : ProfileEffect
+    data object NavigateToLogin : ProfileEffect
+    data object NavigateToEditProfile : ProfileEffect
 }

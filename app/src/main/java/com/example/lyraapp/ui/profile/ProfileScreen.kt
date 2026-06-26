@@ -53,6 +53,8 @@ import com.example.lyraapp.ui.theme.ThemeViewModel
 
 @Composable
 fun ProfileRoute(
+    onNavigateToLogin: () -> Unit = {},
+    onNavigateToEditProfile: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = hiltViewModel(),
     themeViewModel: ThemeViewModel = hiltViewModel(),
@@ -65,6 +67,8 @@ fun ProfileRoute(
         viewModel.effect.collect { effect ->
             when (effect) {
                 is ProfileEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
+                ProfileEffect.NavigateToLogin -> onNavigateToLogin()
+                ProfileEffect.NavigateToEditProfile -> onNavigateToEditProfile()
             }
         }
     }
@@ -115,7 +119,20 @@ fun ProfileScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(28.dp))
+                Text(
+                    text = "Profili düzenle",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onIntent(ProfileIntent.EditProfileClicked) }
+                        .padding(vertical = 8.dp),
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(12.dp))
                 AppearanceSection(
                     isDarkTheme = isDarkTheme,
                     onThemeSelected = onThemeSelected,

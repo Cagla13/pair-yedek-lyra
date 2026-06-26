@@ -6,20 +6,32 @@ import javax.inject.Inject
 
 class AuthInterceptor @Inject constructor(
     private val authTokenHolder: AuthTokenHolder,
+    private val tokenRefreshManager: TokenRefreshManager,
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
-        val token = authTokenHolder.accessToken
+        val authenticatedRequest = original.withBearerToken()
+        var response = chain.proceed(authenticatedRequest)
 
-        val request = if (!token.isNullOrBlank()) {
-            original.newBuilder()
+        if (response.code == 401 && !original.url.encodedPath.contains("/auth/")) {
+            response.close()
+            if (tokenRefreshManager.refreshAccessTokenBlocking()) {
+                response = chain.proceed(original.withBearerToken())
+            }
+        }
+
+        return response
+    }
+
+    private fun okhttp3.Request.withBearerToken(): okhttp3.Request {
+        val token = authTokenHolder.accessToken
+        return if (!token.isNullOrBlank()) {
+            newBuilder()
                 .header("Authorization", "Bearer $token")
                 .build()
         } else {
-            original
+            this
         }
-
-        return chain.proceed(request)
     }
 }

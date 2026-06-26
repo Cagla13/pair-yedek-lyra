@@ -131,3 +131,23 @@ data class RecordPlayBody(
 data class RecordPlayDataDto(
     val recorded: Boolean = false,
 )
+
+@Serializable
+data class LogoutDataDto(
+    val revoked: Boolean = false,
+)
+
+@Serializable
+data class AddPlaylistTrackBody(
+    val songId: String,
+)
+
+@Serializable
+data class PlaylistTrackAddedDto(
+    val added: Boolean = false,
+)
+
+@Serializable
+data class PlaylistTrackRemovedDto(
+    val removed: Boolean = false,
+)

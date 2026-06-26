@@ -27,5 +27,9 @@ interface AuthRepository {
         birthDate: String,
     ): Result<Unit>
 
-    suspend fun hydrateSession(): Result<Unit>
+    suspend fun hydrateSession(): Result<Boolean>
+
+    suspend fun fetchCurrentUser(): Result<Unit>
+
+    suspend fun logout(): Result<Unit>
 }

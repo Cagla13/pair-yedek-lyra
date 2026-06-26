@@ -40,6 +40,12 @@ data class PlaybackTrack(
     }
 }
 
+enum class RepeatMode {
+    OFF,
+    ALL,
+    ONE,
+}
+
 data class PlaybackState(
     val track: PlaybackTrack? = null,
     val isPlaying: Boolean = false,
@@ -49,6 +55,9 @@ data class PlaybackState(
     val progressMs: Long = 0L,
     val durationMs: Long = 0L,
     val shuffleEnabled: Boolean = false,
-    val repeatEnabled: Boolean = true,
+    val repeatMode: RepeatMode = RepeatMode.OFF,
     val isVisible: Boolean = false,
-)
+) {
+    val repeatEnabled: Boolean
+        get() = repeatMode != RepeatMode.OFF
+}

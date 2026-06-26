@@ -110,7 +110,10 @@ fun SearchScreen(
                     } else {
                         SearchResultsList(
                             results = state.searchResults,
+                            hasMoreResults = state.hasMoreResults,
+                            isLoadingMore = state.isLoadingMore,
                             onSongClick = { viewModel.onIntent(SearchContract.Intent.OnSongClick(it)) },
+                            onLoadMore = { viewModel.onIntent(SearchContract.Intent.LoadMoreResults) },
                         )
                     }
                 }
@@ -138,14 +141,21 @@ fun SearchScreen(
 @Composable
 fun SearchResultsList(
     results: List<com.example.lyraapp.data.search.SearchSongItem>,
+    hasMoreResults: Boolean,
+    isLoadingMore: Boolean,
     onSongClick: (String) -> Unit,
+    onLoadMore: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        items(results, key = { it.id }) { song ->
+        items(results.size, key = { results[it].id }) { index ->
+            val song = results[index]
+            if (hasMoreResults && index == results.lastIndex) {
+                LaunchedEffect(song.id) { onLoadMore() }
+            }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -175,6 +185,16 @@ fun SearchResultsList(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+        if (isLoadingMore) {
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator()
+                }
             }
         }
     }

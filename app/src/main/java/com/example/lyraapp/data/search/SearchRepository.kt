@@ -15,19 +15,33 @@ data class SearchSongItem(
     val durationMs: Long,
 )
 
+data class SearchPageResult(
+    val items: List<SearchSongItem>,
+    val nextCursor: String?,
+)
+
 @Singleton
 class SearchRepository @Inject constructor(
     private val api: LyraApiService,
 ) {
 
-    suspend fun searchSongs(query: String, limit: Int = 20): Result<List<SearchSongItem>> {
+    suspend fun searchSongs(
+        query: String,
+        limit: Int = 20,
+        cursor: String? = null,
+    ): Result<SearchPageResult> {
         return try {
             val trimmed = query.trim()
             if (trimmed.isBlank()) {
-                Result.success(emptyList())
+                Result.success(SearchPageResult(emptyList(), null))
             } else {
-                val response = api.searchSongs(query = trimmed, limit = limit)
-                Result.success(response.data.map { it.toSearchSongItem() })
+                val response = api.searchSongs(query = trimmed, limit = limit, cursor = cursor)
+                Result.success(
+                    SearchPageResult(
+                        items = response.data.map { it.toSearchSongItem() },
+                        nextCursor = response.nextCursor,
+                    ),
+                )
             }
         } catch (exception: Exception) {
             Result.failure(IllegalArgumentException(ApiErrorMapper.toMessage(exception)))

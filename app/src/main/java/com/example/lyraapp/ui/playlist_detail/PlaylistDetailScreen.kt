@@ -27,6 +27,8 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +38,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -216,9 +221,13 @@ fun PlaylistDetailScreen(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
-                                    contentDescription = null,
+                                    contentDescription = "Yenile",
                                     tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clickable {
+                                            viewModel.onEvent(PlaylistDetailContract.Event.OnRefreshClicked)
+                                        },
                                 )
 
                                 Box(
@@ -253,7 +262,12 @@ fun PlaylistDetailScreen(
                         TrackItem(
                             track = track,
                             onClick = { viewModel.onEvent(PlaylistDetailContract.Event.OnTrackClicked(track.id)) },
-                            onLikeClick = { viewModel.onEvent(PlaylistDetailContract.Event.OnLikeClicked(track.id)) }
+                            onLikeClick = { viewModel.onEvent(PlaylistDetailContract.Event.OnLikeClicked(track.id)) },
+                            onRemoveClick = if (state.isEditable) {
+                                { viewModel.onEvent(PlaylistDetailContract.Event.OnRemoveTrackClicked(track.id)) }
+                            } else {
+                                null
+                            },
                         )
                     }
 
@@ -270,7 +284,8 @@ fun PlaylistDetailScreen(
 fun TrackItem(
     track: PlaylistDetailContract.Track,
     onClick: () -> Unit,
-    onLikeClick: () -> Unit
+    onLikeClick: () -> Unit,
+    onRemoveClick: (() -> Unit)? = null,
 ) {
     val backgroundColor = if (track.isPlaying) Color(0xFF271D20) else Color.Transparent
 
@@ -337,13 +352,50 @@ fun TrackItem(
             )
         }
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
-        Icon(
-            imageVector = Icons.Default.MoreVert,
-            contentDescription = null,
-            tint = Color(0xFFAAAAAA),
-            modifier = Modifier.size(20.dp)
-        )
+        if (onRemoveClick != null) {
+            var menuExpanded by remember { mutableStateOf(false) }
+
+            Box {
+                IconButton(
+                    onClick = { menuExpanded = true },
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Daha fazla",
+                        tint = Color(0xFFAAAAAA),
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    containerColor = Color(0xFF2A1F24),
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Sil",
+                                color = Color(0xFFFF6B6B),
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onRemoveClick()
+                        },
+                    )
+                }
+            }
+        } else {
+            Icon(
+                imageVector = Icons.Default.MoreVert,
+                contentDescription = null,
+                tint = Color(0xFFAAAAAA),
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
