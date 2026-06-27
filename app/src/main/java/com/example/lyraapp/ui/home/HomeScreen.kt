@@ -44,6 +44,8 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.lyraapp.ui.icons.LyraIcons
 import com.example.lyraapp.ui.library.LibraryPlaylistItem
+import com.example.lyraapp.ui.premium.PremiumExpiryDialog
+import com.example.lyraapp.ui.premium.PremiumExpiryIntent
 
 
 @Composable
@@ -55,6 +57,7 @@ fun HomeRoute(
     onNavigateToRecommendations: () -> Unit,
     onNavigateToFeaturedPlaylists: () -> Unit,
     onNavigateToPlaylistDetail: (String) -> Unit,
+    onNavigateToPremium: (String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -77,6 +80,7 @@ fun HomeRoute(
                 HomeEffect.NavigateToFeaturedPlaylists -> onNavigateToFeaturedPlaylists()
                 is HomeEffect.NavigateToPlaylistDetail -> onNavigateToPlaylistDetail(effect.playlistId)
                 is HomeEffect.ShowNotification -> snackbarHostState.showSnackbar(effect.message)
+                is HomeEffect.NavigateToPremium -> onNavigateToPremium(effect.planType)
             }
         }
     }
@@ -87,6 +91,19 @@ fun HomeRoute(
             onIntent = viewModel::onIntent,
             snackbarHostState = snackbarHostState,
         )
+
+        uiState.premiumExpiryPrompt?.let { prompt ->
+            PremiumExpiryDialog(
+                prompt = prompt,
+                onIntent = { intent ->
+                    when (intent) {
+                        PremiumExpiryIntent.Dismiss -> viewModel.onIntent(HomeIntent.DismissPremiumExpiryPrompt)
+                        PremiumExpiryIntent.ChooseRecurring -> viewModel.onIntent(HomeIntent.PremiumExpiryChooseRecurring)
+                        PremiumExpiryIntent.ChooseOneTime -> viewModel.onIntent(HomeIntent.PremiumExpiryChooseOneTime)
+                    }
+                },
+            )
+        }
     }
 }
 

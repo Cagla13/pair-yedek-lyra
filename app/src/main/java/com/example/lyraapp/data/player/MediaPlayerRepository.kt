@@ -2,6 +2,7 @@ package com.example.lyraapp.data.player
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -9,7 +10,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import com.example.lyraapp.data.favorites.FavoritesRepository
 import com.example.lyraapp.data.favorites.StoredFavorite
 import com.example.lyraapp.data.remote.LyraApiService
-import com.example.lyraapp.data.remote.dto.RecordPlayBody
+import com.example.lyraapp.data.remote.StreamUrlNormalizer
+import com.example.lyraapp.data.remote.dto.AdCompleteBody
+import com.example.lyraapp.data.remote.dto.PlaybackNextBody
 import com.example.lyraapp.service.LyraMediaService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -51,6 +54,7 @@ class MediaPlayerRepository @Inject constructor(
     private var currentIndex: Int = 0
     private var shuffledOrder: List<Int> = emptyList()
     private var shufflePosition: Int = 0
+    private var pendingAdImpressionId: String? = null
 
     init {
         player.addListener(
@@ -62,6 +66,18 @@ class MediaPlayerRepository @Inject constructor(
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_ENDED) {
                         scope.launch { handleTrackEnded() }
+                    }
+                }
+
+                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && pendingAdImpressionId != null) {
+                        val impressionId = pendingAdImpressionId
+                        pendingAdImpressionId = null
+                        scope.launch(Dispatchers.IO) {
+                            runCatching {
+                                api.completeAdPlayback(AdCompleteBody(impressionId!!))
+                            }
+                        }
                     }
                 }
             },
@@ -92,8 +108,10 @@ class MediaPlayerRepository @Inject constructor(
                 player.pause()
             } else if (player.mediaItemCount > 0) {
                 player.play()
+            } else if (queue.isNotEmpty()) {
+                startCurrentTrack()
             } else {
-                _errorEvents.emit("Oynatılacak kaynak bulunamadı. İnternet bağlantınızı kontrol edin.")
+                _errorEvents.emit("Oynatılacak şarkı bulunamadı.")
             }
         }
     }
@@ -169,7 +187,8 @@ class MediaPlayerRepository @Inject constructor(
 
         withContext(Dispatchers.IO) {
             try {
-                val streamUrl = api.getStreamUrl(track.id).data.url
+                val streamUrl = resolveRemoteStreamUrl(track.id)
+                    ?: throw IllegalStateException("Stream URL alınamadı")
                 val destination = File(context.filesDir, "downloads/${track.id}.mp3")
                 destination.parentFile?.mkdirs()
                 URL(streamUrl).openStream().use { input ->
@@ -242,32 +261,27 @@ class MediaPlayerRepository @Inject constructor(
             )
         }
 
-        val streamUri = if (isLocal) {
-            File(context.filesDir, "downloads/${track.id}.mp3").absolutePath
+        val mediaItems = if (isLocal) {
+            listOf(
+                buildSongMediaItem(
+                    track,
+                    Uri.fromFile(File(context.filesDir, "downloads/${track.id}.mp3")).toString(),
+                ),
+            )
         } else {
-            runCatching { api.getStreamUrl(track.id).data.url }.getOrNull()
+            resolveRemoteMediaItems(track)
         }
 
-        if (streamUri == null) {
-            _errorEvents.emit("Bu şarkı indirilmedi, internet bağlantınızı kontrol edin.")
+        if (mediaItems.isNullOrEmpty()) {
+            _playbackState.update {
+                it.copy(track = null, isVisible = false, isPlaying = false)
+            }
+            _errorEvents.emit("Şarkı oynatılamadı. İnternet bağlantınızı kontrol edin.")
             return
         }
 
         withContext(Dispatchers.Main.immediate) {
-            val mediaMetadata = MediaMetadata.Builder()
-                .setTitle(track.title)
-                .setArtist(track.artist)
-                .setDisplayTitle(track.title)
-                .setSubtitle(track.artist)
-                .build()
-
-            val mediaItem = MediaItem.Builder()
-                .setUri(streamUri)
-                .setMediaId(track.id)
-                .setMediaMetadata(mediaMetadata)
-                .build()
-
-            player.setMediaItem(mediaItem)
+            player.setMediaItems(mediaItems)
             player.repeatMode = when (_playbackState.value.repeatMode) {
                 RepeatMode.OFF -> Player.REPEAT_MODE_OFF
                 RepeatMode.ALL -> Player.REPEAT_MODE_ALL
@@ -279,10 +293,87 @@ class MediaPlayerRepository @Inject constructor(
         }
 
         _playbackState.update { it.copy(isPlaying = true) }
+    }
 
-        scope.launch(Dispatchers.IO) {
-            runCatching { api.recordPlay(RecordPlayBody(track.id)) }
+    private suspend fun resolveRemoteMediaItems(track: PlaybackTrack): List<MediaItem>? {
+        return runCatching {
+            val response = api.playbackNext(PlaybackNextBody(track.id)).data
+            when (response.type) {
+                "ad" -> {
+                    val adUrl = response.adStream?.url?.let(StreamUrlNormalizer::normalize)
+                    val songUrl = response.stream?.url?.let(StreamUrlNormalizer::normalize)
+                    if (adUrl.isNullOrBlank() || songUrl.isNullOrBlank()) return null
+                    pendingAdImpressionId = response.impressionId
+                    listOf(
+                        buildAdMediaItem(
+                            mediaId = response.ad?.id ?: "ad",
+                            title = response.ad?.title ?: "Reklam",
+                            artist = response.ad?.advertiser ?: "Lyra",
+                            uri = adUrl,
+                        ),
+                        buildSongMediaItem(track, songUrl),
+                    )
+                }
+                else -> {
+                    pendingAdImpressionId = null
+                    val songUrl = response.stream?.url?.let(StreamUrlNormalizer::normalize)
+                        ?: resolvePremiumStreamUrl(track.id)
+                    songUrl?.let { listOf(buildSongMediaItem(track, it)) }
+                }
+            }
+        }.getOrElse {
+            pendingAdImpressionId = null
+            resolvePremiumStreamUrl(track.id)?.let { url ->
+                listOf(buildSongMediaItem(track, url))
+            }
         }
+    }
+
+    private suspend fun resolveRemoteStreamUrl(songId: String): String? {
+        return runCatching {
+            api.playbackNext(PlaybackNextBody(songId)).data.stream?.url?.let(StreamUrlNormalizer::normalize)
+        }.getOrNull() ?: resolvePremiumStreamUrl(songId)
+    }
+
+    private suspend fun resolvePremiumStreamUrl(songId: String): String? {
+        return runCatching {
+            api.getStreamUrl(songId).data.url.let(StreamUrlNormalizer::normalize)
+        }.getOrNull()
+    }
+
+    private fun buildSongMediaItem(track: PlaybackTrack, uri: String): MediaItem {
+        val mediaMetadata = MediaMetadata.Builder()
+            .setTitle(track.title)
+            .setArtist(track.artist)
+            .setDisplayTitle(track.title)
+            .setSubtitle(track.artist)
+            .build()
+
+        return MediaItem.Builder()
+            .setUri(uri)
+            .setMediaId(track.id)
+            .setMediaMetadata(mediaMetadata)
+            .build()
+    }
+
+    private fun buildAdMediaItem(
+        mediaId: String,
+        title: String,
+        artist: String,
+        uri: String,
+    ): MediaItem {
+        val mediaMetadata = MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist)
+            .setDisplayTitle(title)
+            .setSubtitle(artist)
+            .build()
+
+        return MediaItem.Builder()
+            .setUri(uri)
+            .setMediaId(mediaId)
+            .setMediaMetadata(mediaMetadata)
+            .build()
     }
 
     private suspend fun observeProgress() {

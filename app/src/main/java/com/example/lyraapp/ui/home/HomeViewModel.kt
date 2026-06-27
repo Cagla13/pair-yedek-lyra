@@ -5,13 +5,18 @@ import androidx.lifecycle.viewModelScope
 import com.example.lyraapp.data.AuthRepository
 import com.example.lyraapp.data.home.HomeRepository
 import com.example.lyraapp.data.player.PlayerRepository
+import com.example.lyraapp.data.membership.MembershipRepository
+import com.example.lyraapp.data.membership.PremiumPromptStore
 import com.example.lyraapp.data.player.toPlaybackTrack
+import com.example.lyraapp.ui.premium.PremiumExpiryPromptUi
+import com.example.lyraapp.ui.premium.PremiumPlanType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -24,6 +29,8 @@ class HomeViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val homeRepository: HomeRepository,
     private val playerRepository: PlayerRepository,
+    private val membershipRepository: MembershipRepository,
+    private val premiumPromptStore: PremiumPromptStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState(isLoading = true))
@@ -34,11 +41,13 @@ class HomeViewModel @Inject constructor(
 
     private var cachedTracks: List<PlayableItem> = emptyList()
     private var skipNextHomeResumeRefresh = true
+    private var currentMembershipExpiresAt: String? = null
 
     init {
         observeCurrentUser()
         observePlayback()
         loadHomeContent()
+        refreshMembershipAndPrompt()
     }
 
     private fun observeCurrentUser() {
@@ -108,6 +117,24 @@ class HomeViewModel @Inject constructor(
                 _effect.send(HomeEffect.NavigateToPlayer)
             }
             HomeIntent.RetryLoad -> loadHomeContent()
+            HomeIntent.DismissPremiumExpiryPrompt -> dismissPremiumExpiryPrompt()
+            HomeIntent.PremiumExpiryChooseRecurring -> navigateToPremium(PremiumPlanType.RECURRING)
+            HomeIntent.PremiumExpiryChooseOneTime -> navigateToPremium(PremiumPlanType.ONE_TIME)
+        }
+    }
+
+    private fun dismissPremiumExpiryPrompt() {
+        viewModelScope.launch {
+            currentMembershipExpiresAt?.let { premiumPromptStore.dismiss(it) }
+            _uiState.update { it.copy(premiumExpiryPrompt = null) }
+        }
+    }
+
+    private fun navigateToPremium(planType: PremiumPlanType) {
+        viewModelScope.launch {
+            currentMembershipExpiresAt?.let { premiumPromptStore.dismiss(it) }
+            _uiState.update { it.copy(premiumExpiryPrompt = null) }
+            _effect.send(HomeEffect.NavigateToPremium(planType.apiValue))
         }
     }
 
@@ -117,6 +144,48 @@ class HomeViewModel @Inject constructor(
             return
         }
         refreshRecentlyPlayed()
+        refreshMembershipAndPrompt()
+    }
+
+    private fun refreshMembershipAndPrompt() {
+        viewModelScope.launch {
+            authRepository.fetchCurrentUser()
+            evaluatePremiumExpiryPrompt()
+        }
+    }
+
+    private suspend fun evaluatePremiumExpiryPrompt() {
+        val user = authRepository.currentUser.first() ?: run {
+            _uiState.update { it.copy(premiumExpiryPrompt = null) }
+            return
+        }
+        val membership = user.membership ?: run {
+            _uiState.update { it.copy(premiumExpiryPrompt = null) }
+            return
+        }
+        currentMembershipExpiresAt = membership.expiresAt
+        if (!membership.shouldShowExpiryPrompt()) {
+            _uiState.update { it.copy(premiumExpiryPrompt = null) }
+            return
+        }
+        val expiresAt = membership.expiresAt ?: return
+        if (premiumPromptStore.isDismissed(expiresAt)) return
+
+        membershipRepository.loadPlans()
+            .onSuccess { plans ->
+                val recurring = plans.firstOrNull { it.type == PremiumPlanType.RECURRING.apiValue }
+                val oneTime = plans.firstOrNull { it.type == PremiumPlanType.ONE_TIME.apiValue }
+                _uiState.update {
+                    it.copy(
+                        premiumExpiryPrompt = PremiumExpiryPromptUi(
+                            daysRemaining = membership.daysUntilExpiry()?.coerceAtLeast(0) ?: 0,
+                            recurringPriceLabel = recurring?.monthlyPriceLabel ?: recurring?.priceLabel.orEmpty(),
+                            oneTimePriceLabel = oneTime?.priceLabel.orEmpty(),
+                            oneTimeDurationDays = oneTime?.durationDays ?: 30,
+                        ),
+                    )
+                }
+            }
     }
 
     private fun playTrack(itemId: String) {

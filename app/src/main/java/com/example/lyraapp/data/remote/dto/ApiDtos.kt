@@ -54,6 +54,30 @@ data class UserDto(
     val birthDate: String? = null,
     val createdAt: String? = null,
     val profileCompleted: Boolean = false,
+    val membership: MembershipDto? = null,
+)
+
+@Serializable
+data class MembershipDto(
+    val planId: String? = null,
+    val type: String? = null,
+    val status: String? = null,
+    val autoRenew: Boolean = false,
+    val startedAt: String? = null,
+    val expiresAt: String? = null,
+)
+
+@Serializable
+data class MembershipPlanDto(
+    val id: String,
+    val type: String,
+    val name: String,
+    val description: String? = null,
+    val priceKurus: Int = 0,
+    val price: Int = 0,
+    val currency: String = "TRY",
+    val durationDays: Int = 30,
+    val autoRenew: Boolean = false,
 )
 
 @Serializable
@@ -120,6 +144,40 @@ data class StreamUrlDto(
     val url: String,
     val expiresAt: String? = null,
     val mimeType: String? = null,
+)
+
+@Serializable
+data class PlaybackNextBody(
+    val songId: String,
+)
+
+@Serializable
+data class AdDto(
+    val id: String,
+    val title: String,
+    val advertiser: String? = null,
+    val durationMs: Long = 0L,
+    val mimeType: String? = null,
+)
+
+@Serializable
+data class PlaybackNextDataDto(
+    val type: String,
+    val song: SongDto? = null,
+    val stream: StreamUrlDto? = null,
+    val ad: AdDto? = null,
+    val adStream: StreamUrlDto? = null,
+    val impressionId: String? = null,
+)
+
+@Serializable
+data class AdCompleteBody(
+    val impressionId: String,
+)
+
+@Serializable
+data class AdCompleteDataDto(
+    val completed: Boolean = false,
 )
 
 @Serializable

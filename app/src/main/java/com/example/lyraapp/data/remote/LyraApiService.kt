@@ -1,13 +1,18 @@
 package com.example.lyraapp.data.remote
 
+import com.example.lyraapp.data.remote.dto.AdCompleteBody
+import com.example.lyraapp.data.remote.dto.AdCompleteDataDto
 import com.example.lyraapp.data.remote.dto.AddPlaylistTrackBody
 import com.example.lyraapp.data.remote.dto.ApiEnvelope
 import com.example.lyraapp.data.remote.dto.AuthSessionDto
 import com.example.lyraapp.data.remote.dto.CreatePlaylistRequest
 import com.example.lyraapp.data.remote.dto.LogoutDataDto
+import com.example.lyraapp.data.remote.dto.MembershipPlanDto
 import com.example.lyraapp.data.remote.dto.OtpRequestBody
 import com.example.lyraapp.data.remote.dto.OtpRequestDataDto
 import com.example.lyraapp.data.remote.dto.OtpVerifyBody
+import com.example.lyraapp.data.remote.dto.PlaybackNextBody
+import com.example.lyraapp.data.remote.dto.PlaybackNextDataDto
 import com.example.lyraapp.data.remote.dto.PlaylistDto
 import com.example.lyraapp.data.remote.dto.PlaylistTrackAddedDto
 import com.example.lyraapp.data.remote.dto.PlaylistTrackRemovedDto
@@ -116,6 +121,19 @@ interface LyraApiService {
     suspend fun getStreamUrl(
         @Path("id") songId: String,
     ): ApiEnvelope<StreamUrlDto>
+
+    @POST("api/v1/me/playback/next")
+    suspend fun playbackNext(
+        @Body body: PlaybackNextBody,
+    ): ApiEnvelope<PlaybackNextDataDto>
+
+    @POST("api/v1/me/playback/ad-complete")
+    suspend fun completeAdPlayback(
+        @Body body: AdCompleteBody,
+    ): ApiEnvelope<AdCompleteDataDto>
+
+    @GET("api/v1/memberships/plans")
+    suspend fun getMembershipPlans(): ApiEnvelope<List<MembershipPlanDto>>
 
     @POST("api/v1/me/plays")
     suspend fun recordPlay(

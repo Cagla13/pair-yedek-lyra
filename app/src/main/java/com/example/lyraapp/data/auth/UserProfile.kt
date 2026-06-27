@@ -7,7 +7,11 @@ data class UserProfile(
     val phoneNumber: String,
     val birthDate: String = "",
     val profileCompleted: Boolean = true,
+    val membership: UserMembership? = null,
 ) {
+    val isPremium: Boolean
+        get() = membership?.isActivePremium == true
+
     val fullName: String
         get() = listOf(firstName, lastName)
             .filter { it.isNotBlank() }

@@ -35,6 +35,7 @@ import com.example.lyraapp.ui.home.HomeRoute
 import com.example.lyraapp.ui.home_section.HomeSection
 import com.example.lyraapp.ui.home_section.HomeSectionRoute
 import com.example.lyraapp.ui.library.LibraryRoute
+import com.example.lyraapp.ui.premium.PremiumRoute
 import com.example.lyraapp.ui.player.LyraPlaybackBar
 import com.example.lyraapp.ui.player.PlayerRoute
 import com.example.lyraapp.ui.playlist_detail.PlaylistDetailScreen
@@ -203,6 +204,11 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToPremium = { planType ->
+                        navController.navigate(LyraDestination.Premium.createRoute(planType)) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
@@ -345,6 +351,18 @@ fun LyraNavHost(
                         }
                     },
                 )
+            }
+
+            composable(
+                route = LyraDestination.Premium.route,
+                arguments = listOf(
+                    navArgument(LyraDestination.Premium.PLAN_ARG) {
+                        type = NavType.StringType
+                        defaultValue = LyraDestination.Premium.DEFAULT_PLAN
+                    },
+                ),
+            ) {
+                PremiumRoute(onNavigateBack = { navController.popBackStack() })
             }
 
             composable(

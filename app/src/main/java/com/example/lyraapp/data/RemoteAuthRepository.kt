@@ -85,6 +85,7 @@ class RemoteAuthRepository @Inject constructor(
             refreshToken = session.refreshToken,
             user = session.user,
         )
+        fetchCurrentUser()
         val user = session.user
         Result.success(
             OtpVerifyResult(

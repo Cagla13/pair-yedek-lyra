@@ -2,6 +2,8 @@ package com.example.lyraapp.ui.home
 
 import androidx.compose.runtime.Immutable
 
+import com.example.lyraapp.ui.premium.PremiumExpiryPromptUi
+
 @Immutable
 data class HomeUiState(
     val userName: String = "",
@@ -16,6 +18,7 @@ data class HomeUiState(
     val isFavorite: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val premiumExpiryPrompt: PremiumExpiryPromptUi? = null,
 )
 
 data class PlayableItem(
@@ -40,6 +43,9 @@ sealed interface HomeIntent {
     data object SeeAllFeaturedPlaylistsClicked : HomeIntent
     data object MiniPlayerClicked : HomeIntent
     data object RetryLoad : HomeIntent
+    data object DismissPremiumExpiryPrompt : HomeIntent
+    data object PremiumExpiryChooseRecurring : HomeIntent
+    data object PremiumExpiryChooseOneTime : HomeIntent
 }
 
 sealed interface HomeEffect {
@@ -51,4 +57,5 @@ sealed interface HomeEffect {
     data object NavigateToFeaturedPlaylists : HomeEffect
     data class NavigateToPlaylistDetail(val playlistId: String) : HomeEffect
     data class ShowNotification(val message: String) : HomeEffect
+    data class NavigateToPremium(val planType: String? = null) : HomeEffect
 }

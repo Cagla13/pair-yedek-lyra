@@ -99,9 +99,10 @@ class ProfileViewModel @Inject constructor(
             authRepository.currentUser.collect { user ->
                 _uiState.update { current ->
                     current.copy(
-                        displayName = user?.fullName ?: current.displayName,
-                        handle = user?.handle ?: current.handle,
-                        avatarInitials = user?.initials ?: current.avatarInitials,
+                        displayName = user?.fullName.orEmpty(),
+                        handle = user?.handle.orEmpty(),
+                        avatarInitials = user?.initials.orEmpty(),
+                        isPremium = user?.isPremium == true,
                     )
                 }
             }

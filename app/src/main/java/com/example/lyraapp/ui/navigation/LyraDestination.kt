@@ -35,4 +35,11 @@ sealed class LyraDestination(val route: String) {
     }
     data object Player : LyraDestination("player")
     data object NotificationPreview : LyraDestination("notification_preview")
+    data object Premium : LyraDestination("premium/{plan}") {
+        fun createRoute(plan: String? = null): String =
+            "premium/${plan?.ifBlank { DEFAULT_PLAN } ?: DEFAULT_PLAN}"
+
+        const val PLAN_ARG = "plan"
+        const val DEFAULT_PLAN = "recurring"
+    }
 }
