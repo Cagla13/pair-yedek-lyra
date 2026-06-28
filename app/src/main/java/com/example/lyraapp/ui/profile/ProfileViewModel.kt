@@ -46,6 +46,9 @@ class ProfileViewModel @Inject constructor(
             }
             is ProfileIntent.SettingClicked -> handleSettingClick(intent.id)
             ProfileIntent.LogoutClicked -> logout()
+            ProfileIntent.PremiumClicked -> viewModelScope.launch {
+                _effect.send(ProfileEffect.NavigateToPremium)
+            }
         }
     }
 

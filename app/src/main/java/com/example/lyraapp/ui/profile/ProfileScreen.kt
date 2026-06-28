@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Settings
@@ -55,6 +56,7 @@ import com.example.lyraapp.ui.theme.ThemeViewModel
 fun ProfileRoute(
     onNavigateToLogin: () -> Unit = {},
     onNavigateToEditProfile: () -> Unit = {},
+    onNavigateToPremium: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ProfileViewModel = hiltViewModel(),
     themeViewModel: ThemeViewModel = hiltViewModel(),
@@ -69,6 +71,7 @@ fun ProfileRoute(
                 is ProfileEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
                 ProfileEffect.NavigateToLogin -> onNavigateToLogin()
                 ProfileEffect.NavigateToEditProfile -> onNavigateToEditProfile()
+                ProfileEffect.NavigateToPremium -> onNavigateToPremium()
             }
         }
     }
@@ -129,6 +132,13 @@ fun ProfileScreen(
                         .padding(vertical = 8.dp),
                     textAlign = TextAlign.Center,
                 )
+            }
+
+            if (!state.isPremium) {
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    PremiumBanner(onClick = { onIntent(ProfileIntent.PremiumClicked) })
+                }
             }
 
             item {
@@ -278,6 +288,53 @@ private fun ProfileStatColumn(stat: ProfileStat) {
 }
 
 @Composable
+private fun PremiumBanner(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary,
+                        MaterialTheme.colorScheme.secondary,
+                    ),
+                ),
+            )
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Lyra Premium",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimary,
+                )
+                Text(
+                    text = "Müziği sınırsız ve yüksek kalitede dinle. Planları gör.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.8f),
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+            )
+        }
+    }
+}
+
+@Composable
 private fun ProfileSettingRow(
     item: ProfileSettingItem,
     onClick: () -> Unit,
@@ -334,7 +391,7 @@ private fun ProfileScreenLightPreview() {
             state = ProfileUiState(
                 displayName = "Zeynep Kaya",
                 handle = "@zeynepk",
-                isPremium = true,
+                isPremium = false,
                 avatarInitials = "ZK",
                 stats = listOf(
                     ProfileStat("127", "Çalma listesi"),
@@ -347,30 +404,6 @@ private fun ProfileScreenLightPreview() {
                 ),
             ),
             isDarkTheme = false,
-            onThemeSelected = {},
-            onIntent = {},
-        )
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun ProfileScreenDarkPreview() {
-    LyraAppTheme(darkTheme = true) {
-        ProfileScreen(
-            state = ProfileUiState(
-                displayName = "Zeynep Kaya",
-                handle = "@zeynepk",
-                isPremium = true,
-                avatarInitials = "ZK",
-                stats = listOf(
-                    ProfileStat("127", "Çalma listesi"),
-                    ProfileStat("1.2B", "Takipçi"),
-                    ProfileStat("348", "Takip"),
-                ),
-                settings = emptyList(),
-            ),
-            isDarkTheme = true,
             onThemeSelected = {},
             onIntent = {},
         )
