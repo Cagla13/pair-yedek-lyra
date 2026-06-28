@@ -42,4 +42,12 @@ sealed class LyraDestination(val route: String) {
         const val PLAN_ARG = "plan"
         const val DEFAULT_PLAN = "recurring"
     }
+    data object Payment : LyraDestination("payment?price={price}&title={title}&desc={desc}") {
+        fun createRoute(price: String, title: String, desc: String): String {
+            return "payment?price=${Uri.encode(price)}&title=${Uri.encode(title)}&desc=${Uri.encode(desc)}"
+        }
+        const val PRICE_ARG = "price"
+        const val TITLE_ARG = "title"
+        const val DESC_ARG = "desc"
+    }
 }

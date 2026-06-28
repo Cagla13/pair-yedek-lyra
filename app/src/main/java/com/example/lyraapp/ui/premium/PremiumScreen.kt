@@ -49,6 +49,7 @@ import com.example.lyraapp.ui.icons.LyraIcons
 @Composable
 fun PremiumRoute(
     onNavigateBack: () -> Unit,
+    onNavigateToPayment: (price: String, title: String, desc: String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: PremiumViewModel = hiltViewModel(),
 ) {
@@ -59,6 +60,9 @@ fun PremiumRoute(
         viewModel.effect.collect { effect ->
             when (effect) {
                 PremiumEffect.NavigateBack -> onNavigateBack()
+                is PremiumEffect.NavigateToPayment -> {
+                    onNavigateToPayment(effect.price, effect.title, effect.desc)
+                }
                 is PremiumEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
             }
         }

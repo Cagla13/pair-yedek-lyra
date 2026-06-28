@@ -41,7 +41,19 @@ class PremiumViewModel @Inject constructor(
                 _uiState.update { it.copy(selectedPlanType = intent.planType) }
             }
             PremiumIntent.Continue -> viewModelScope.launch {
-                _effect.send(PremiumEffect.ShowMessage("Ödeme adımı ekip arkadaşın tarafından eklenecek."))
+                val state = _uiState.value
+                val selectedPlan = state.plans.find { it.type == state.selectedPlanType }
+                if (selectedPlan != null) {
+                    _effect.send(
+                        PremiumEffect.NavigateToPayment(
+                            price = selectedPlan.priceLabel,
+                            title = "LyraApp Premium",
+                            desc = selectedPlan.title
+                        )
+                    )
+                } else {
+                    _effect.send(PremiumEffect.ShowMessage("Lütfen bir plan seçin."))
+                }
             }
             PremiumIntent.Back -> viewModelScope.launch {
                 _effect.send(PremiumEffect.NavigateBack)

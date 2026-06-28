@@ -10,7 +10,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -21,9 +20,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.lyraapp.ui.profile.EditProfileRoute
-import com.example.lyraapp.ui.profile.ProfileRoute
-import com.example.lyraapp.ui.song_detail.SongDetailRoute
 import com.example.lyraapp.ui.auth.login.LoginRoute
 import com.example.lyraapp.ui.auth.otp.OtpRoute
 import com.example.lyraapp.ui.auth.register.RegisterRoute
@@ -35,13 +31,17 @@ import com.example.lyraapp.ui.home.HomeRoute
 import com.example.lyraapp.ui.home_section.HomeSection
 import com.example.lyraapp.ui.home_section.HomeSectionRoute
 import com.example.lyraapp.ui.library.LibraryRoute
-import com.example.lyraapp.ui.premium.PremiumRoute
+import com.example.lyraapp.ui.payment.PaymentRoute
 import com.example.lyraapp.ui.player.LyraPlaybackBar
 import com.example.lyraapp.ui.player.PlayerRoute
 import com.example.lyraapp.ui.playlist_detail.PlaylistDetailScreen
+import com.example.lyraapp.ui.premium.PremiumRoute
+import com.example.lyraapp.ui.profile.EditProfileRoute
+import com.example.lyraapp.ui.profile.ProfileRoute
 import com.example.lyraapp.ui.recently_played.RecentlyPlayedRoute
 import com.example.lyraapp.ui.search.SearchRoute
 import com.example.lyraapp.ui.session.SessionViewModel
+import com.example.lyraapp.ui.song_detail.SongDetailRoute
 
 @Composable
 fun LyraNavHost(
@@ -283,6 +283,11 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToPremium = {
+                        navController.navigate(LyraDestination.Premium.createRoute()) {
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
 
@@ -362,7 +367,41 @@ fun LyraNavHost(
                     },
                 ),
             ) {
-                PremiumRoute(onNavigateBack = { navController.popBackStack() })
+                PremiumRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToPayment = { price, title, desc ->
+                        navController.navigate(LyraDestination.Payment.createRoute(price, title, desc)) {
+                            launchSingleTop = true
+                        }
+                    }
+                )
+            }
+
+            composable(
+                route = LyraDestination.Payment.route,
+                arguments = listOf(
+                    navArgument(LyraDestination.Payment.PRICE_ARG) {
+                        type = NavType.StringType
+                        nullable = true
+                    },
+                    navArgument(LyraDestination.Payment.TITLE_ARG) {
+                        type = NavType.StringType
+                        nullable = true
+                    },
+                    navArgument(LyraDestination.Payment.DESC_ARG) {
+                        type = NavType.StringType
+                        nullable = true
+                    }
+                )
+            ) {
+                PaymentRoute(
+                    onNavigateBack = { navController.popBackStack() },
+                    onPaymentSuccess = {
+                        navController.navigate(LyraDestination.Home.route) {
+                            popUpTo(LyraDestination.Home.route) { inclusive = true }
+                        }
+                    }
+                )
             }
 
             composable(
