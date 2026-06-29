@@ -30,4 +30,8 @@ data class UserProfile(
             val lastInitial = lastName.trim().firstOrNull()?.lowercaseChar()?.toString().orEmpty()
             return "@$userPart$lastInitial"
         }
+
+    // Kendi yazdığın gün hesaplama fonksiyonunu doğrudan buraya bağladık!
+    val premiumRemainingDays: Int?
+        get() = membership?.daysUntilExpiry()
 }

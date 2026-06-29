@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.WorkspacePremium
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -134,9 +136,14 @@ fun ProfileScreen(
                 )
             }
 
-            if (!state.isPremium) {
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
+            item {
+                Spacer(modifier = Modifier.height(16.dp))
+                if (state.isPremium) {
+                    PremiumActiveBanner(
+                        daysLeft = state.premiumRemainingDays ?: 0,
+                        onClick = { onIntent(ProfileIntent.PremiumClicked) }
+                    )
+                } else {
                     PremiumBanner(onClick = { onIntent(ProfileIntent.PremiumClicked) })
                 }
             }
@@ -287,6 +294,71 @@ private fun ProfileStatColumn(stat: ProfileStat) {
     }
 }
 
+// --- YENİ EKLENEN AKTİF PREMİUM BİLEŞENİ ---
+@Composable
+private fun PremiumActiveBanner(
+    daysLeft: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(
+                        Color(0xFFFDE0E0),
+                        Color(0xFFFCE1D5)
+                    )
+                )
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.WorkspacePremium,
+                    contentDescription = "Premium Status",
+                    tint = Color.Black
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Premium · $daysLeft gün kaldı",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color.Black,
+                )
+                Text(
+                    text = "Yenile ya da aboneliğe geç",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Black.copy(alpha = 0.7f),
+                )
+            }
+
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "Detaylar",
+                tint = Color.Black.copy(alpha = 0.7f),
+            )
+        }
+    }
+}
+
 @Composable
 private fun PremiumBanner(
     onClick: () -> Unit,
@@ -391,7 +463,8 @@ private fun ProfileScreenLightPreview() {
             state = ProfileUiState(
                 displayName = "Zeynep Kaya",
                 handle = "@zeynepk",
-                isPremium = false,
+                isPremium = true, // Önizlemede aktif premium banner'ı görmek için true yapıldı
+                premiumRemainingDays = 3, // Önizlemede 3 gün eklendi
                 avatarInitials = "ZK",
                 stats = listOf(
                     ProfileStat("127", "Çalma listesi"),

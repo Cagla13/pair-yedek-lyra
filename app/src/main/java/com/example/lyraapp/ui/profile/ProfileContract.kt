@@ -7,6 +7,7 @@ data class ProfileUiState(
     val displayName: String = "",
     val handle: String = "",
     val isPremium: Boolean = false,
+    val premiumRemainingDays: Int? = null, // Yeni eklenen kısım
     val avatarInitials: String = "",
     val stats: List<ProfileStat> = emptyList(),
     val settings: List<ProfileSettingItem> = emptyList(),

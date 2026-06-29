@@ -106,6 +106,7 @@ class ProfileViewModel @Inject constructor(
                         handle = user?.handle.orEmpty(),
                         avatarInitials = user?.initials.orEmpty(),
                         isPremium = user?.isPremium == true,
+                        premiumRemainingDays = user?.premiumRemainingDays
                     )
                 }
             }

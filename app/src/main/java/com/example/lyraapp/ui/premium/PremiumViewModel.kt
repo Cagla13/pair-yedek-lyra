@@ -66,26 +66,29 @@ class PremiumViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
             membershipRepository.loadPlans()
                 .onSuccess { plans ->
-                    val planUi = plans.mapNotNull { plan ->
+                    val planUiList = plans.mapNotNull { plan ->
                         val type = PremiumPlanType.fromApiValue(plan.type) ?: return@mapNotNull null
+
                         PremiumPlanUi(
                             id = plan.id,
                             type = type,
-                            title = plan.title,
-                            subtitle = plan.subtitle,
-                            priceLabel = plan.priceLabel,
-                            isPopular = plan.isPopular,
+                            title = plan.title,       // Düzeltildi
+                            subtitle = plan.subtitle, // Düzeltildi
+                            priceLabel = plan.priceLabel, // Düzeltildi
+                            isPopular = plan.isPopular
                         )
                     }
-                    val recurring = plans.firstOrNull { it.type == PremiumPlanType.RECURRING.apiValue }
+
+                    val recurringPlan = planUiList.firstOrNull { it.type == PremiumPlanType.RECURRING }
+
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            plans = planUi,
-                            selectedPlanType = planUi.firstOrNull { plan -> plan.type == initialPlan }?.type
-                                ?: planUi.firstOrNull()?.type
+                            plans = planUiList,
+                            selectedPlanType = planUiList.firstOrNull { plan -> plan.type == initialPlan }?.type
+                                ?: planUiList.firstOrNull()?.type
                                 ?: PremiumPlanType.RECURRING,
-                            footerNote = recurring?.monthlyPriceLabel?.let { price ->
+                            footerNote = recurringPlan?.priceLabel?.let { price ->
                                 "Aylık $price. Dilediğin zaman iptal edebilirsin."
                             }.orEmpty(),
                         )
