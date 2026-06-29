@@ -3,7 +3,11 @@ package com.example.lyraapp.ui.payment
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.lyraapp.data.AuthRepository
+import com.example.lyraapp.data.membership.CheckoutCardDetails
+import com.example.lyraapp.data.membership.MembershipRepository
 import com.example.lyraapp.ui.navigation.LyraDestination
+import com.example.lyraapp.ui.premium.PremiumPlanType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -17,9 +21,13 @@ import javax.inject.Inject
 
 @HiltViewModel
 class PaymentViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle
+    savedStateHandle: SavedStateHandle,
+    private val membershipRepository: MembershipRepository,
+    private val authRepository: AuthRepository,
 ) : ViewModel() {
 
+    private val planType = savedStateHandle.get<String>(LyraDestination.Payment.PLAN_ARG)
+        ?: PremiumPlanType.RECURRING.apiValue
     private val price = savedStateHandle.get<String>(LyraDestination.Payment.PRICE_ARG) ?: "₺59,99"
     private val title = savedStateHandle.get<String>(LyraDestination.Payment.TITLE_ARG) ?: "LyraApp Premium"
     private val desc = savedStateHandle.get<String>(LyraDestination.Payment.DESC_ARG) ?: "Aylık abonelik"
@@ -28,8 +36,8 @@ class PaymentViewModel @Inject constructor(
         PaymentUiState(
             price = price,
             planName = title,
-            planDescription = desc
-        )
+            planDescription = desc,
+        ),
     )
     val uiState: StateFlow<PaymentUiState> = _uiState.asStateFlow()
 
@@ -56,9 +64,9 @@ class PaymentViewModel @Inject constructor(
 
     private fun validate(state: PaymentUiState): Boolean {
         return state.cardNumber.replace(" ", "").length == 16 &&
-                state.cardHolderName.isNotBlank() &&
-                state.expiryDate.length == 5 &&
-                state.cvc.length == 3
+            state.cardHolderName.isNotBlank() &&
+            state.expiryDate.length == 5 &&
+            state.cvc.length == 3
     }
 
     private fun formatCardNumber(value: String): String {
@@ -77,12 +85,43 @@ class PaymentViewModel @Inject constructor(
 
     private fun processPayment() {
         if (_uiState.value.isLoading) return
+        val state = _uiState.value
+        val expiry = parseExpiry(state.expiryDate)
+        if (expiry == null) {
+            viewModelScope.launch {
+                _effect.send(PaymentEffect.ShowError("Geçersiz son kullanma tarihi."))
+            }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            // Simulating network delay
-            kotlinx.coroutines.delay(2000)
-            _uiState.update { it.copy(isLoading = false) }
-            _effect.send(PaymentEffect.PaymentSuccess)
+            membershipRepository.checkout(
+                planType = planType,
+                card = CheckoutCardDetails(
+                    number = state.cardNumber.replace(" ", ""),
+                    expMonth = expiry.first,
+                    expYear = expiry.second,
+                    cvc = state.cvc,
+                    holderName = state.cardHolderName.trim(),
+                ),
+            ).onSuccess {
+                authRepository.fetchCurrentUser()
+                _uiState.update { it.copy(isLoading = false) }
+                _effect.send(PaymentEffect.PaymentSuccess)
+            }.onFailure { error ->
+                _uiState.update { it.copy(isLoading = false) }
+                _effect.send(PaymentEffect.ShowError(error.message ?: "Ödeme başarısız."))
+            }
         }
+    }
+
+    private fun parseExpiry(expiryDate: String): Pair<Int, Int>? {
+        val parts = expiryDate.split("/")
+        if (parts.size != 2) return null
+        val month = parts[0].toIntOrNull()?.takeIf { it in 1..12 } ?: return null
+        val yearSuffix = parts[1].toIntOrNull() ?: return null
+        val year = if (yearSuffix < 100) 2000 + yearSuffix else yearSuffix
+        return month to year
     }
 }

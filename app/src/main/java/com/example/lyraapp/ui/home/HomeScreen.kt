@@ -1,7 +1,11 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.example.lyraapp.ui.home
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +62,7 @@ fun HomeRoute(
     onNavigateToFeaturedPlaylists: () -> Unit,
     onNavigateToPlaylistDetail: (String) -> Unit,
     onNavigateToPremium: (String?) -> Unit,
+    onNavigateToSongDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -81,6 +86,7 @@ fun HomeRoute(
                 is HomeEffect.NavigateToPlaylistDetail -> onNavigateToPlaylistDetail(effect.playlistId)
                 is HomeEffect.ShowNotification -> snackbarHostState.showSnackbar(effect.message)
                 is HomeEffect.NavigateToPremium -> onNavigateToPremium(effect.planType)
+                is HomeEffect.NavigateToSongDetail -> onNavigateToSongDetail(effect.songId)
             }
         }
     }
@@ -124,6 +130,8 @@ fun HomeScreen(
                     track = track,
                     isPlaying = state.isPlaying,
                     isFavorite = state.isFavorite,
+                    isPlayingAd = state.isPlayingAd,
+                    adTitle = state.adTitle,
                     onBarClick = { onIntent(HomeIntent.MiniPlayerClicked) },
                     onTogglePlay = { onIntent(HomeIntent.TogglePlayPause) },
                     onToggleFavorite = { onIntent(HomeIntent.ToggleFavorite) },
@@ -192,7 +200,11 @@ fun HomeScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)
                 )
-                QuickPicksGrid(items = state.quickPicks, onItemClick = { onIntent(HomeIntent.QuickPickClicked(it)) })
+                QuickPicksGrid(
+                    items = state.quickPicks,
+                    onItemClick = { onIntent(HomeIntent.QuickPickClicked(it)) },
+                    onItemLongClick = { onIntent(HomeIntent.TrackLongClicked(it)) },
+                )
             }
 
             // 3. Son Çalınanlar
@@ -201,7 +213,11 @@ fun HomeScreen(
                     title = "Son çalınanlar",
                     onSeeAllClick = { onIntent(HomeIntent.SeeAllRecentlyPlayedClicked) },
                 )
-                HorizontalTrackList(items = state.recentlyPlayed, onItemClick = { onIntent(HomeIntent.TrackClicked(it)) })
+                HorizontalTrackList(
+                    items = state.recentlyPlayed,
+                    onItemClick = { onIntent(HomeIntent.TrackClicked(it)) },
+                    onItemLongClick = { onIntent(HomeIntent.TrackLongClicked(it)) },
+                )
             }
 
             // 4. Senin İçin Müzikler (for-you)
@@ -213,6 +229,7 @@ fun HomeScreen(
                 HorizontalTrackList(
                     items = state.forYouMusic,
                     onItemClick = { onIntent(HomeIntent.TrackClicked(it)) },
+                    onItemLongClick = { onIntent(HomeIntent.TrackLongClicked(it)) },
                 )
             }
 
@@ -225,6 +242,7 @@ fun HomeScreen(
                 HorizontalTrackList(
                     items = state.recommendations,
                     onItemClick = { onIntent(HomeIntent.TrackClicked(it)) },
+                    onItemLongClick = { onIntent(HomeIntent.TrackLongClicked(it)) },
                 )
             }
 
@@ -290,7 +308,11 @@ private fun HomeHeader(
 }
 
 @Composable
-private fun QuickPicksGrid(items: List<PlayableItem>, onItemClick: (String) -> Unit) {
+private fun QuickPicksGrid(
+    items: List<PlayableItem>,
+    onItemClick: (String) -> Unit,
+    onItemLongClick: (String) -> Unit,
+) {
     Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp)) {
         val chunked = items.chunked(2)
         chunked.forEach { rowItems ->
@@ -299,7 +321,12 @@ private fun QuickPicksGrid(items: List<PlayableItem>, onItemClick: (String) -> U
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 rowItems.forEach { item ->
-                    QuickPickCard(item = item, modifier = Modifier.weight(1f), onClick = { onItemClick(item.id) })
+                    QuickPickCard(
+                        item = item,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onItemClick(item.id) },
+                        onLongClick = { onItemLongClick(item.id) },
+                    )
                 }
                 if (rowItems.size == 1) Spacer(modifier = Modifier.weight(1f))
             }
@@ -309,7 +336,12 @@ private fun QuickPicksGrid(items: List<PlayableItem>, onItemClick: (String) -> U
 }
 
 @Composable
-private fun QuickPickCard(item: PlayableItem, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun QuickPickCard(
+    item: PlayableItem,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+) {
     val gradients = listOf(
         listOf(Color(0xFF8E2DE2), Color(0xFF4A00E0)),
         listOf(Color(0xFFED213A), Color(0xFF93291E)),
@@ -322,7 +354,7 @@ private fun QuickPickCard(item: PlayableItem, modifier: Modifier = Modifier, onC
             .height(56.dp)
             .clip(RoundedCornerShape(8.dp))
             .background(Brush.horizontalGradient(currentGradient))
-            .clickable(onClick = onClick),
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Spacer(modifier = Modifier.width(16.dp))
@@ -357,7 +389,11 @@ private fun SectionHeader(title: String, onSeeAllClick: () -> Unit) {
 }
 
 @Composable
-private fun HorizontalTrackList(items: List<PlayableItem>, onItemClick: (String) -> Unit) {
+private fun HorizontalTrackList(
+    items: List<PlayableItem>,
+    onItemClick: (String) -> Unit,
+    onItemLongClick: (String) -> Unit = {},
+) {
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -366,7 +402,10 @@ private fun HorizontalTrackList(items: List<PlayableItem>, onItemClick: (String)
             Column(
                 modifier = Modifier
                     .width(140.dp)
-                    .clickable { onItemClick(item.id) }
+                    .combinedClickable(
+                        onClick = { onItemClick(item.id) },
+                        onLongClick = { onItemLongClick(item.id) },
+                    )
             ) {
                 // Mock Tasarımdaki Renkli Albüm Kapağı Alanı
                 Box(
@@ -464,6 +503,8 @@ private fun MiniPlayer(
     track: PlayableItem,
     isPlaying: Boolean,
     isFavorite: Boolean,
+    isPlayingAd: Boolean = false,
+    adTitle: String? = null,
     onBarClick: () -> Unit,
     onTogglePlay: () -> Unit,
     onToggleFavorite: () -> Unit,
@@ -500,8 +541,18 @@ private fun MiniPlayer(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(text = track.title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, maxLines = 1)
-                    track.subtitle?.let { Text(text = it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1) }
+                    Text(
+                        text = if (isPlayingAd) adTitle ?: "Reklam" else track.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = if (isPlayingAd) "Reklam · ${track.title} sırada" else (track.subtitle ?: ""),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
                 }
             }
             IconButton(onClick = onToggleFavorite) {

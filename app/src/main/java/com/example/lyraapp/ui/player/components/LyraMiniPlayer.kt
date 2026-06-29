@@ -38,6 +38,8 @@ fun LyraMiniPlayer(
     onBarClick: () -> Unit,
     onTogglePlayPause: () -> Unit,
     modifier: Modifier = Modifier,
+    isPlayingAd: Boolean = false,
+    adTitle: String? = null,
 ) {
     val progress = if (durationMs > 0L) progressMs.toFloat() / durationMs else 0f
 
@@ -80,14 +82,14 @@ fun LyraMiniPlayer(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = track.title,
+                        text = if (isPlayingAd) adTitle ?: "Reklam" else track.title,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = track.artist,
+                        text = if (isPlayingAd) "Reklam · ${track.title} sırada" else track.artist,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

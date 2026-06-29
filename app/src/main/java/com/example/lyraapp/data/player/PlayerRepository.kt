@@ -57,6 +57,8 @@ data class PlaybackState(
     val shuffleEnabled: Boolean = false,
     val repeatMode: RepeatMode = RepeatMode.OFF,
     val isVisible: Boolean = false,
+    val isPlayingAd: Boolean = false,
+    val adTitle: String? = null,
 ) {
     val repeatEnabled: Boolean
         get() = repeatMode != RepeatMode.OFF

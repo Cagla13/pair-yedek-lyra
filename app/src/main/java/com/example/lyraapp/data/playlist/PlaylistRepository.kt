@@ -121,6 +121,13 @@ class PlaylistRepository @Inject constructor(
         Result.failure(IllegalArgumentException(ApiErrorMapper.toMessage(exception)))
     }
 
+    suspend fun deletePlaylist(playlistId: String): Result<Unit> = try {
+        api.deletePlaylist(playlistId)
+        Result.success(Unit)
+    } catch (exception: Exception) {
+        Result.failure(IllegalArgumentException(ApiErrorMapper.toMessage(exception)))
+    }
+
     suspend fun loadPublicPlaylists(): Result<List<LibraryPlaylistItem>> = try {
         val playlists = api.getPublicPlaylists().data
         val items = playlists.mapIndexed { index, playlist ->

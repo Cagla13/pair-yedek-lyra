@@ -21,6 +21,8 @@ data class PlayerUiState(
     val showAddToPlaylistDialog: Boolean = false,
     val userPlaylists: List<UserPlaylistOption> = emptyList(),
     val isAddingToPlaylist: Boolean = false,
+    val isPlayingAd: Boolean = false,
+    val adTitle: String? = null,
 )
 
 sealed interface PlayerIntent {

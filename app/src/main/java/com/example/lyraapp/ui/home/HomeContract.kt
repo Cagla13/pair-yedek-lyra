@@ -16,6 +16,8 @@ data class HomeUiState(
     val currentPlayingTrack: PlayableItem? = null,
     val isPlaying: Boolean = false,
     val isFavorite: Boolean = false,
+    val isPlayingAd: Boolean = false,
+    val adTitle: String? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
     val premiumExpiryPrompt: PremiumExpiryPromptUi? = null,
@@ -33,6 +35,7 @@ data class PlayableItem(
 sealed interface HomeIntent {
     data class QuickPickClicked(val itemId: String) : HomeIntent
     data class TrackClicked(val itemId: String) : HomeIntent
+    data class TrackLongClicked(val itemId: String) : HomeIntent
     data object TogglePlayPause : HomeIntent
     data object ToggleFavorite : HomeIntent
     data object ProfileClicked : HomeIntent
@@ -56,6 +59,7 @@ sealed interface HomeEffect {
     data object NavigateToRecommendations : HomeEffect
     data object NavigateToFeaturedPlaylists : HomeEffect
     data class NavigateToPlaylistDetail(val playlistId: String) : HomeEffect
+    data class NavigateToSongDetail(val songId: String) : HomeEffect
     data class ShowNotification(val message: String) : HomeEffect
     data class NavigateToPremium(val planType: String? = null) : HomeEffect
 }

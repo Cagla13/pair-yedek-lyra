@@ -144,7 +144,7 @@ fun PlayerScreen(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = state.title,
+                        text = if (state.isPlayingAd) state.adTitle ?: "Reklam" else state.title,
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
@@ -152,7 +152,11 @@ fun PlayerScreen(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = state.artist,
+                        text = if (state.isPlayingAd) {
+                            "Reklam oynatılıyor · ${state.title} sırada"
+                        } else {
+                            state.artist
+                        },
                         style = MaterialTheme.typography.bodyLarge,
                         color = Color.White.copy(alpha = 0.72f),
                         maxLines = 1,

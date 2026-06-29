@@ -1,7 +1,11 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.example.lyraapp.ui.library
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,7 +31,10 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapVert
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
@@ -37,10 +44,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +72,7 @@ fun LibraryRoute(
     onNavigateToPlaylistDetail: (String) -> Unit,
     onNavigateToFavorites: () -> Unit,
     onNavigateToPlayer: () -> Unit,
+    onNavigateToSongDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LibraryViewModel = hiltViewModel(),
 ) {
@@ -80,6 +91,7 @@ fun LibraryRoute(
                 is LibraryEffect.NavigateToPlaylistDetail -> onNavigateToPlaylistDetail(effect.playlistId)
                 LibraryEffect.NavigateToFavorites -> onNavigateToFavorites()
                 LibraryEffect.NavigateToPlayer -> onNavigateToPlayer()
+                is LibraryEffect.NavigateToSongDetail -> onNavigateToSongDetail(effect.songId)
                 is LibraryEffect.ShowMessage -> snackbarHostState.showSnackbar(effect.message)
             }
         }
@@ -90,6 +102,31 @@ fun LibraryRoute(
         onIntent = viewModel::onIntent,
         snackbarHostState = snackbarHostState,
         modifier = modifier,
+    )
+}
+
+@Composable
+private fun DeletePlaylistDialog(
+    prompt: LibraryDeletePrompt,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Çalma listesini sil") },
+        text = {
+            Text("\"${prompt.title}\" kalıcı olarak silinecek. Bu işlem geri alınamaz.")
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Sil", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Vazgeç")
+            }
+        },
     )
 }
 
@@ -105,6 +142,14 @@ fun LibraryScreen(
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
+        state.deletePrompt?.let { prompt ->
+            DeletePlaylistDialog(
+                prompt = prompt,
+                onConfirm = { onIntent(LibraryIntent.ConfirmDeletePlaylist) },
+                onDismiss = { onIntent(LibraryIntent.DismissDeletePlaylist) },
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -135,6 +180,7 @@ fun LibraryScreen(
                         isLoading = state.isLoading,
                         onBack = { onIntent(LibraryIntent.CatalogBackClicked) },
                         onSongClick = { onIntent(LibraryIntent.CatalogSongClicked(it)) },
+                        onSongLongClick = { onIntent(LibraryIntent.CatalogSongLongClicked(it)) },
                     )
                 }
                 state.selectedFilter == LibraryFilter.Playlists -> {
@@ -169,7 +215,7 @@ fun LibraryScreen(
                                 LibraryPlaylistRow(
                                     item = playlist,
                                     onClick = { onIntent(LibraryIntent.PlaylistClicked(playlist.id)) },
-                                    onMenuClick = { onIntent(LibraryIntent.PlaylistMenuClicked(playlist.id)) },
+                                    onDeleteRequest = { onIntent(LibraryIntent.RequestDeletePlaylist(playlist.id)) },
                                 )
                             }
                         }
@@ -377,8 +423,10 @@ private fun LibrarySortRow(
 private fun LibraryPlaylistRow(
     item: LibraryPlaylistItem,
     onClick: () -> Unit,
-    onMenuClick: () -> Unit,
+    onDeleteRequest: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -438,12 +486,31 @@ private fun LibraryPlaylistRow(
                 modifier = Modifier.size(20.dp),
             )
         } else {
-            IconButton(onClick = onMenuClick) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Daha fazla",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Daha fazla",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Çalma listesini sil",
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onDeleteRequest()
+                        },
+                    )
+                }
             }
         }
     }
@@ -469,11 +536,11 @@ private fun ErrorBox(message: String, onRetry: () -> Unit) {
 }
 
 @Composable
-private fun CatalogRow(title: String, subtitle: String, onClick: () -> Unit) {
+private fun CatalogRow(title: String, subtitle: String, onClick: () -> Unit, onLongClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -491,6 +558,7 @@ private fun CatalogSongsSection(
     isLoading: Boolean,
     onBack: () -> Unit,
     onSongClick: (String) -> Unit,
+    onSongLongClick: (String) -> Unit = {},
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Row(
@@ -519,6 +587,7 @@ private fun CatalogSongsSection(
                         title = song.title,
                         subtitle = "${song.artist} • ${song.duration}",
                         onClick = { onSongClick(song.id) },
+                        onLongClick = { onSongLongClick(song.id) },
                     )
                 }
             }

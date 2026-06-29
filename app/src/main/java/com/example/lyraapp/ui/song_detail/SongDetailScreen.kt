@@ -18,11 +18,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -37,12 +40,13 @@ fun SongDetailRoute(
     viewModel: SongDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 SongDetailEffect.NavigateToPlayer -> onNavigateToPlayer()
-                is SongDetailEffect.ShowError -> Unit
+                is SongDetailEffect.ShowError -> snackbarHostState.showSnackbar(effect.message)
             }
         }
     }
@@ -52,6 +56,7 @@ fun SongDetailRoute(
         onNavigateBack = onNavigateBack,
         onPlay = { viewModel.onIntent(SongDetailIntent.Play) },
         onRetry = { viewModel.onIntent(SongDetailIntent.Retry) },
+        snackbarHostState = snackbarHostState,
     )
 }
 
@@ -62,8 +67,10 @@ fun SongDetailScreen(
     onNavigateBack: () -> Unit,
     onPlay: () -> Unit,
     onRetry: () -> Unit,
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Şarkı detayı") },

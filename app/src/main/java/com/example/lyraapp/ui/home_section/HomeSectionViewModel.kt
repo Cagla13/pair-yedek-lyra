@@ -50,6 +50,9 @@ class HomeSectionViewModel @Inject constructor(
         when (intent) {
             HomeSectionIntent.Retry -> loadContent()
             is HomeSectionIntent.TrackClicked -> playTrack(intent.trackId)
+            is HomeSectionIntent.TrackLongClicked -> viewModelScope.launch {
+                _effect.send(HomeSectionEffect.NavigateToSongDetail(intent.trackId))
+            }
             is HomeSectionIntent.PlaylistClicked -> viewModelScope.launch {
                 _effect.send(HomeSectionEffect.NavigateToPlaylistDetail(intent.playlistId))
             }
@@ -127,11 +130,13 @@ data class HomeSectionUiState(
 
 sealed interface HomeSectionIntent {
     data class TrackClicked(val trackId: String) : HomeSectionIntent
+    data class TrackLongClicked(val trackId: String) : HomeSectionIntent
     data class PlaylistClicked(val playlistId: String) : HomeSectionIntent
     data object Retry : HomeSectionIntent
 }
 
 sealed interface HomeSectionEffect {
     data object NavigateToPlayer : HomeSectionEffect
+    data class NavigateToSongDetail(val songId: String) : HomeSectionEffect
     data class NavigateToPlaylistDetail(val playlistId: String) : HomeSectionEffect
 }

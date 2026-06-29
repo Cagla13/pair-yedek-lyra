@@ -18,6 +18,7 @@ class FavoritesContract {
 
     sealed interface Intent {
         data class OnSongClick(val songId: String) : Intent
+        data class OnSongLongClick(val songId: String) : Intent
         data class OnRemoveFromFavorites(val songId: String) : Intent
         data object OnPlayAllClick : Intent
         data object OnShuffleClick : Intent
@@ -26,5 +27,6 @@ class FavoritesContract {
     sealed interface SideEffect {
         data class ShowToast(val message: String) : SideEffect
         data object NavigateToPlayer : SideEffect
+        data class NavigateToSongDetail(val songId: String) : SideEffect
     }
 }

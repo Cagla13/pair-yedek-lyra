@@ -10,6 +10,7 @@ import com.example.lyraapp.data.home.formatDurationMs
 import com.example.lyraapp.data.library.LibraryRepository
 import com.example.lyraapp.data.player.PlayerRepository
 import com.example.lyraapp.data.player.toPlaybackTrack
+import com.example.lyraapp.data.playlist.PlaylistRepository
 import com.example.lyraapp.data.remote.dto.SongDto
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -28,6 +29,7 @@ class LibraryViewModel @Inject constructor(
     private val catalogRepository: CatalogRepository,
     private val favoritesRepository: FavoritesRepository,
     private val playerRepository: PlayerRepository,
+    private val playlistRepository: PlaylistRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LibraryUiState(isLoading = true))
@@ -68,9 +70,15 @@ class LibraryViewModel @Inject constructor(
                     sendEffect(LibraryEffect.NavigateToPlaylistDetail(intent.playlistId))
                 }
             }
-            is LibraryIntent.PlaylistMenuClicked -> sendEffect(
-                LibraryEffect.ShowMessage("Çalma listesi silme API'de henüz yok."),
-            )
+            is LibraryIntent.RequestDeletePlaylist -> showDeletePrompt(intent.playlistId)
+            LibraryIntent.DismissDeletePlaylist -> {
+                _uiState.update { it.copy(deletePrompt = null) }
+            }
+            LibraryIntent.ConfirmDeletePlaylist -> {
+                val prompt = _uiState.value.deletePrompt ?: return
+                _uiState.update { it.copy(deletePrompt = null) }
+                deletePlaylist(prompt.playlistId)
+            }
             LibraryIntent.RetryLoad -> reloadCurrentFilter()
             is LibraryIntent.ArtistClicked -> openCatalog(title = intent.name, songsLoader = {
                 catalogRepository.songsByArtist(intent.name)
@@ -80,6 +88,7 @@ class LibraryViewModel @Inject constructor(
                 songsLoader = { catalogRepository.songsByAlbum(intent.title, intent.artist) },
             )
             is LibraryIntent.CatalogSongClicked -> playCatalogSong(intent.songId)
+            is LibraryIntent.CatalogSongLongClicked -> sendEffect(LibraryEffect.NavigateToSongDetail(intent.songId))
             LibraryIntent.CatalogBackClicked -> {
                 _uiState.update { it.copy(catalogTitle = null, catalogSongs = emptyList()) }
             }
@@ -191,6 +200,34 @@ class LibraryViewModel @Inject constructor(
             val index = queue.indexOfFirst { it.id == songId }.coerceAtLeast(0)
             playerRepository.playTrack(track = queue[index], queue = queue, startIndex = index)
             sendEffect(LibraryEffect.NavigateToPlayer)
+        }
+    }
+
+    private fun showDeletePrompt(playlistId: String) {
+        if (playlistId == LIKED_SONGS_ID) {
+            sendEffect(LibraryEffect.ShowMessage("Beğenilen şarkılar silinemez."))
+            return
+        }
+        val playlist = _uiState.value.playlists.find { it.id == playlistId } ?: return
+        _uiState.update {
+            it.copy(deletePrompt = LibraryDeletePrompt(playlistId = playlist.id, title = playlist.title))
+        }
+    }
+
+    private fun deletePlaylist(playlistId: String) {
+        if (playlistId == LIKED_SONGS_ID) {
+            sendEffect(LibraryEffect.ShowMessage("Beğenilen şarkılar silinemez."))
+            return
+        }
+        viewModelScope.launch {
+            playlistRepository.deletePlaylist(playlistId)
+                .onSuccess {
+                    sendEffect(LibraryEffect.ShowMessage("Çalma listesi silindi."))
+                    loadPlaylists()
+                }
+                .onFailure { error ->
+                    sendEffect(LibraryEffect.ShowMessage(error.message ?: "Çalma listesi silinemedi."))
+                }
         }
     }
 

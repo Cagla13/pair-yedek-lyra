@@ -20,6 +20,7 @@ object ApiErrorMapper {
             } ?: when (throwable.code()) {
                 401 -> "Doğrulama kodu hatalı."
                 400 -> "Geçersiz istek."
+                402 -> "Kart reddedildi. Lütfen farklı bir kart deneyin."
                 else -> "Sunucu hatası (${throwable.code()})."
             }
         }

@@ -38,6 +38,9 @@ class RecentlyPlayedViewModel @Inject constructor(
         when (intent) {
             RecentlyPlayedIntent.Retry -> loadTracks()
             is RecentlyPlayedIntent.TrackClicked -> playTrack(intent.trackId)
+            is RecentlyPlayedIntent.TrackLongClicked -> viewModelScope.launch {
+                _effect.send(RecentlyPlayedEffect.NavigateToSongDetail(intent.trackId))
+            }
         }
     }
 
@@ -83,9 +86,11 @@ data class RecentlyPlayedUiState(
 
 sealed interface RecentlyPlayedIntent {
     data class TrackClicked(val trackId: String) : RecentlyPlayedIntent
+    data class TrackLongClicked(val trackId: String) : RecentlyPlayedIntent
     data object Retry : RecentlyPlayedIntent
 }
 
 sealed interface RecentlyPlayedEffect {
     data object NavigateToPlayer : RecentlyPlayedEffect
+    data class NavigateToSongDetail(val songId: String) : RecentlyPlayedEffect
 }

@@ -1,5 +1,9 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.example.lyraapp.ui.recently_played
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,6 +42,7 @@ import com.example.lyraapp.ui.home.PlayableItem
 fun RecentlyPlayedRoute(
     onNavigateBack: () -> Unit,
     onNavigateToPlayer: () -> Unit,
+    onNavigateToSongDetail: (String) -> Unit,
     viewModel: RecentlyPlayedViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -46,6 +51,7 @@ fun RecentlyPlayedRoute(
         viewModel.effect.collect { effect ->
             when (effect) {
                 RecentlyPlayedEffect.NavigateToPlayer -> onNavigateToPlayer()
+                is RecentlyPlayedEffect.NavigateToSongDetail -> onNavigateToSongDetail(effect.songId)
             }
         }
     }
@@ -54,6 +60,7 @@ fun RecentlyPlayedRoute(
         state = state,
         onNavigateBack = onNavigateBack,
         onTrackClick = { viewModel.onIntent(RecentlyPlayedIntent.TrackClicked(it)) },
+        onTrackLongClick = { viewModel.onIntent(RecentlyPlayedIntent.TrackLongClicked(it)) },
         onRetry = { viewModel.onIntent(RecentlyPlayedIntent.Retry) },
     )
 }
@@ -64,6 +71,7 @@ fun RecentlyPlayedScreen(
     state: RecentlyPlayedUiState,
     onNavigateBack: () -> Unit,
     onTrackClick: (String) -> Unit,
+    onTrackLongClick: (String) -> Unit = {},
     onRetry: () -> Unit,
 ) {
     Scaffold(
@@ -108,7 +116,11 @@ fun RecentlyPlayedScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(state.tracks, key = { it.id }) { track ->
-                        RecentlyPlayedTrackRow(track = track, onClick = { onTrackClick(track.id) })
+                        RecentlyPlayedTrackRow(
+                            track = track,
+                            onClick = { onTrackClick(track.id) },
+                            onLongClick = { onTrackLongClick(track.id) },
+                        )
                     }
                 }
             }
@@ -120,12 +132,13 @@ fun RecentlyPlayedScreen(
 private fun RecentlyPlayedTrackRow(
     track: PlayableItem,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(12.dp),
     ) {
         Text(
