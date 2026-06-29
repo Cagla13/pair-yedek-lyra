@@ -1,8 +1,12 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.example.lyraapp.ui.favorites
 
 import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -31,7 +35,8 @@ fun FavoritesScreen(
     viewModel: FavoritesViewModel,
     onNavigateBack: () -> Unit,
     onNavigateToPlayer: () -> Unit,
-    modifier: Modifier = Modifier
+    onNavigateToSongDetail: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
@@ -43,6 +48,7 @@ fun FavoritesScreen(
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
                 }
                 FavoritesContract.SideEffect.NavigateToPlayer -> onNavigateToPlayer()
+                is FavoritesContract.SideEffect.NavigateToSongDetail -> onNavigateToSongDetail(effect.songId)
             }
         }
     }
@@ -161,7 +167,8 @@ fun FavoritesScreen(
                     SongListItem(
                         song = song,
                         onSongClick = { viewModel.onIntent(FavoritesContract.Intent.OnSongClick(song.id)) },
-                        onHeartClick = { viewModel.onIntent(FavoritesContract.Intent.OnRemoveFromFavorites(song.id)) }
+                        onSongLongClick = { viewModel.onIntent(FavoritesContract.Intent.OnSongLongClick(song.id)) },
+                        onHeartClick = { viewModel.onIntent(FavoritesContract.Intent.OnRemoveFromFavorites(song.id)) },
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -174,7 +181,8 @@ fun FavoritesScreen(
 fun SongListItem(
     song: SongUiModel,
     onSongClick: () -> Unit,
-    onHeartClick: () -> Unit
+    onSongLongClick: () -> Unit = {},
+    onHeartClick: () -> Unit,
 ) {
     val itemBg = if (song.isPlaying) Color.Gray.copy(alpha = 0.1f) else Color.Transparent
 
@@ -183,7 +191,7 @@ fun SongListItem(
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(itemBg)
-            .clickable { onSongClick() }
+            .combinedClickable(onClick = onSongClick, onLongClick = onSongLongClick)
             .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

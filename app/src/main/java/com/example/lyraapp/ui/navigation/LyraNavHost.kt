@@ -79,6 +79,12 @@ fun LyraNavHost(
 
     val startDestination = if (isLoggedIn) LyraDestination.Home.route else LyraDestination.Login.route
 
+    val navigateToSongDetail: (String) -> Unit = { songId ->
+        navController.navigate(LyraDestination.SongDetail.createRoute(songId)) {
+            launchSingleTop = true
+        }
+    }
+
     Scaffold(
         bottomBar = {
             if (currentRoute in showBottomBarScreens) {
@@ -209,6 +215,7 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToSongDetail = navigateToSongDetail,
                 )
             }
 
@@ -219,6 +226,7 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToSongDetail = navigateToSongDetail,
                 )
             }
 
@@ -254,6 +262,7 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToSongDetail = navigateToSongDetail,
                 )
             }
 
@@ -267,6 +276,7 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToSongDetail = navigateToSongDetail,
                 )
             }
 
@@ -321,6 +331,7 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToSongDetail = navigateToSongDetail,
                 )
             }
 
@@ -344,6 +355,7 @@ fun LyraNavHost(
                             launchSingleTop = true
                         }
                     },
+                    onNavigateToSongDetail = navigateToSongDetail,
                 )
             }
 
@@ -369,17 +381,21 @@ fun LyraNavHost(
             ) {
                 PremiumRoute(
                     onNavigateBack = { navController.popBackStack() },
-                    onNavigateToPayment = { price, title, desc ->
-                        navController.navigate(LyraDestination.Payment.createRoute(price, title, desc)) {
+                    onNavigateToPayment = { plan, price, title, desc ->
+                        navController.navigate(LyraDestination.Payment.createRoute(plan, price, title, desc)) {
                             launchSingleTop = true
                         }
-                    }
+                    },
                 )
             }
 
             composable(
                 route = LyraDestination.Payment.route,
                 arguments = listOf(
+                    navArgument(LyraDestination.Payment.PLAN_ARG) {
+                        type = NavType.StringType
+                        defaultValue = LyraDestination.Premium.DEFAULT_PLAN
+                    },
                     navArgument(LyraDestination.Payment.PRICE_ARG) {
                         type = NavType.StringType
                         nullable = true
@@ -391,8 +407,8 @@ fun LyraNavHost(
                     navArgument(LyraDestination.Payment.DESC_ARG) {
                         type = NavType.StringType
                         nullable = true
-                    }
-                )
+                    },
+                ),
             ) {
                 PaymentRoute(
                     onNavigateBack = { navController.popBackStack() },

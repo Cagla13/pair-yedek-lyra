@@ -13,6 +13,8 @@ import com.example.lyraapp.data.remote.LyraApiService
 import com.example.lyraapp.data.remote.StreamUrlNormalizer
 import com.example.lyraapp.data.remote.dto.AdCompleteBody
 import com.example.lyraapp.data.remote.dto.PlaybackNextBody
+import com.example.lyraapp.data.remote.dto.RecordPlayBody
+import com.example.lyraapp.data.settings.AppSettingsRepository
 import com.example.lyraapp.service.LyraMediaService
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -40,6 +43,7 @@ class MediaPlayerRepository @Inject constructor(
     private val player: ExoPlayer,
     private val api: LyraApiService,
     private val favoritesRepository: FavoritesRepository,
+    private val appSettingsRepository: AppSettingsRepository,
 ) : PlayerRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -70,6 +74,9 @@ class MediaPlayerRepository @Inject constructor(
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    val isAdItem = mediaItem?.mediaId?.startsWith("ad:") == true
+                    _playbackState.update { it.copy(isPlayingAd = isAdItem) }
+
                     if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && pendingAdImpressionId != null) {
                         val impressionId = pendingAdImpressionId
                         pendingAdImpressionId = null
@@ -183,6 +190,12 @@ class MediaPlayerRepository @Inject constructor(
         val track = _playbackState.value.track ?: return
         if (isDownloaded(track.id)) return
 
+        val settings = appSettingsRepository.settings.first()
+        if (!settings.offlineDownloadEnabled) {
+            _errorEvents.emit("Çevrimdışı indirme kapalı. Profilden açabilirsin.")
+            return
+        }
+
         _playbackState.update { it.copy(isDownloading = true) }
 
         withContext(Dispatchers.IO) {
@@ -255,22 +268,29 @@ class MediaPlayerRepository @Inject constructor(
                 isPlaying = false,
                 isFavorite = isFavorite,
                 isDownloaded = isLocal,
+                isPlayingAd = false,
+                adTitle = null,
                 progressMs = 0L,
                 durationMs = track.durationMs,
                 isVisible = true,
             )
         }
 
-        val mediaItems = if (isLocal) {
-            listOf(
-                buildSongMediaItem(
-                    track,
-                    Uri.fromFile(File(context.filesDir, "downloads/${track.id}.mp3")).toString(),
+        val resolveResult = if (isLocal) {
+            RemoteResolveResult(
+                mediaItems = listOf(
+                    buildSongMediaItem(
+                        track,
+                        Uri.fromFile(File(context.filesDir, "downloads/${track.id}.mp3")).toString(),
+                    ),
                 ),
+                playRecordedByServer = false,
             )
         } else {
             resolveRemoteMediaItems(track)
         }
+
+        val mediaItems = resolveResult.mediaItems
 
         if (mediaItems.isNullOrEmpty()) {
             _playbackState.update {
@@ -292,39 +312,77 @@ class MediaPlayerRepository @Inject constructor(
             startMediaService()
         }
 
-        _playbackState.update { it.copy(isPlaying = true) }
+        val startsWithAd = mediaItems.firstOrNull()?.mediaId?.startsWith("ad:") == true
+        _playbackState.update {
+            it.copy(
+                isPlaying = true,
+                isPlayingAd = startsWithAd,
+                adTitle = if (startsWithAd) mediaItems.first().mediaMetadata.title?.toString() else null,
+            )
+        }
+
+        if (!resolveResult.playRecordedByServer) {
+            scope.launch(Dispatchers.IO) {
+                runCatching { api.recordPlay(RecordPlayBody(track.id)) }
+            }
+        }
     }
 
-    private suspend fun resolveRemoteMediaItems(track: PlaybackTrack): List<MediaItem>? {
+    private data class RemoteResolveResult(
+        val mediaItems: List<MediaItem>?,
+        /** true when POST /me/playback/next succeeded — server already recorded the play. */
+        val playRecordedByServer: Boolean,
+    )
+
+    private suspend fun resolveRemoteMediaItems(track: PlaybackTrack): RemoteResolveResult {
         return runCatching {
             val response = api.playbackNext(PlaybackNextBody(track.id)).data
             when (response.type) {
                 "ad" -> {
                     val adUrl = response.adStream?.url?.let(StreamUrlNormalizer::normalize)
                     val songUrl = response.stream?.url?.let(StreamUrlNormalizer::normalize)
-                    if (adUrl.isNullOrBlank() || songUrl.isNullOrBlank()) return null
-                    pendingAdImpressionId = response.impressionId
-                    listOf(
-                        buildAdMediaItem(
-                            mediaId = response.ad?.id ?: "ad",
-                            title = response.ad?.title ?: "Reklam",
-                            artist = response.ad?.advertiser ?: "Lyra",
-                            uri = adUrl,
-                        ),
-                        buildSongMediaItem(track, songUrl),
-                    )
+                    if (adUrl.isNullOrBlank() || songUrl.isNullOrBlank()) {
+                        RemoteResolveResult(null, playRecordedByServer = false)
+                    } else {
+                        pendingAdImpressionId = response.impressionId
+                        RemoteResolveResult(
+                            mediaItems = listOf(
+                                buildAdMediaItem(
+                                    mediaId = "ad:${response.ad?.id ?: "spot"}",
+                                    title = response.ad?.title ?: "Reklam",
+                                    artist = response.ad?.advertiser ?: "Lyra",
+                                    uri = adUrl,
+                                ),
+                                buildSongMediaItem(track, songUrl),
+                            ),
+                            playRecordedByServer = true,
+                        )
+                    }
                 }
                 else -> {
                     pendingAdImpressionId = null
                     val songUrl = response.stream?.url?.let(StreamUrlNormalizer::normalize)
-                        ?: resolvePremiumStreamUrl(track.id)
-                    songUrl?.let { listOf(buildSongMediaItem(track, it)) }
+                    if (songUrl.isNullOrBlank()) {
+                        RemoteResolveResult(null, playRecordedByServer = false)
+                    } else {
+                        RemoteResolveResult(
+                            mediaItems = listOf(buildSongMediaItem(track, songUrl)),
+                            playRecordedByServer = true,
+                        )
+                    }
                 }
             }
         }.getOrElse {
             pendingAdImpressionId = null
-            resolvePremiumStreamUrl(track.id)?.let { url ->
-                listOf(buildSongMediaItem(track, url))
+            // Premium fallback only — free users must use playback/next (403 on stream-url).
+            val url = resolvePremiumStreamUrl(track.id)
+            if (url != null) {
+                RemoteResolveResult(
+                    mediaItems = listOf(buildSongMediaItem(track, url)),
+                    playRecordedByServer = false,
+                )
+            } else {
+                RemoteResolveResult(null, playRecordedByServer = false)
             }
         }
     }

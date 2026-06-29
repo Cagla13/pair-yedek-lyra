@@ -43,6 +43,9 @@ class FavoritesViewModel @Inject constructor(
     fun onIntent(intent: FavoritesContract.Intent) {
         when (intent) {
             is FavoritesContract.Intent.OnSongClick -> playTrack(intent.songId, shuffle = false)
+            is FavoritesContract.Intent.OnSongLongClick -> viewModelScope.launch {
+                _effect.send(FavoritesContract.SideEffect.NavigateToSongDetail(intent.songId))
+            }
             is FavoritesContract.Intent.OnRemoveFromFavorites -> viewModelScope.launch {
                 favoritesRepository.remove(intent.songId)
                 _effect.send(FavoritesContract.SideEffect.ShowToast("Favorilerden kaldırıldı"))

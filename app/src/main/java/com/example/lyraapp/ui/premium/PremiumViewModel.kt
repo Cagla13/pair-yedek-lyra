@@ -46,10 +46,11 @@ class PremiumViewModel @Inject constructor(
                 if (selectedPlan != null) {
                     _effect.send(
                         PremiumEffect.NavigateToPayment(
+                            plan = state.selectedPlanType.apiValue,
                             price = selectedPlan.priceLabel,
                             title = "LyraApp Premium",
-                            desc = selectedPlan.title
-                        )
+                            desc = selectedPlan.title,
+                        ),
                     )
                 } else {
                     _effect.send(PremiumEffect.ShowMessage("Lütfen bir plan seçin."))

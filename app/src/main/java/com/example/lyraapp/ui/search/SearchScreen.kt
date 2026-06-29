@@ -1,8 +1,12 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.example.lyraapp.ui.search
 
 import android.widget.Toast
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +35,7 @@ import kotlinx.coroutines.flow.collectLatest
 @Composable
 fun SearchRoute(
     onNavigateToPlayer: () -> Unit,
+    onNavigateToSongDetail: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = hiltViewModel(),
 ) {
@@ -43,6 +48,7 @@ fun SearchRoute(
                     Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
                 }
                 SearchContract.SideEffect.NavigateToPlayer -> onNavigateToPlayer()
+                is SearchContract.SideEffect.NavigateToSongDetail -> onNavigateToSongDetail(effect.songId)
             }
         }
     }
@@ -113,6 +119,7 @@ fun SearchScreen(
                             hasMoreResults = state.hasMoreResults,
                             isLoadingMore = state.isLoadingMore,
                             onSongClick = { viewModel.onIntent(SearchContract.Intent.OnSongClick(it)) },
+                            onSongLongClick = { viewModel.onIntent(SearchContract.Intent.OnSongLongClick(it)) },
                             onLoadMore = { viewModel.onIntent(SearchContract.Intent.LoadMoreResults) },
                         )
                     }
@@ -144,6 +151,7 @@ fun SearchResultsList(
     hasMoreResults: Boolean,
     isLoadingMore: Boolean,
     onSongClick: (String) -> Unit,
+    onSongLongClick: (String) -> Unit = {},
     onLoadMore: () -> Unit,
 ) {
     LazyColumn(
@@ -160,7 +168,10 @@ fun SearchResultsList(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { onSongClick(song.id) }
+                    .combinedClickable(
+                        onClick = { onSongClick(song.id) },
+                        onLongClick = { onSongLongClick(song.id) },
+                    )
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

@@ -1,7 +1,11 @@
+@file:OptIn(ExperimentalFoundationApi::class)
+
 package com.example.lyraapp.ui.home_section
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +49,7 @@ fun HomeSectionRoute(
     onNavigateBack: () -> Unit,
     onNavigateToPlayer: () -> Unit,
     onNavigateToPlaylistDetail: (String) -> Unit,
+    onNavigateToSongDetail: (String) -> Unit,
     viewModel: HomeSectionViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -53,6 +58,7 @@ fun HomeSectionRoute(
         viewModel.effect.collect { effect ->
             when (effect) {
                 HomeSectionEffect.NavigateToPlayer -> onNavigateToPlayer()
+                is HomeSectionEffect.NavigateToSongDetail -> onNavigateToSongDetail(effect.songId)
                 is HomeSectionEffect.NavigateToPlaylistDetail -> onNavigateToPlaylistDetail(effect.playlistId)
             }
         }
@@ -62,6 +68,7 @@ fun HomeSectionRoute(
         state = state,
         onNavigateBack = onNavigateBack,
         onTrackClick = { viewModel.onIntent(HomeSectionIntent.TrackClicked(it)) },
+        onTrackLongClick = { viewModel.onIntent(HomeSectionIntent.TrackLongClicked(it)) },
         onPlaylistClick = { viewModel.onIntent(HomeSectionIntent.PlaylistClicked(it)) },
         onRetry = { viewModel.onIntent(HomeSectionIntent.Retry) },
     )
@@ -73,6 +80,7 @@ fun HomeSectionScreen(
     state: HomeSectionUiState,
     onNavigateBack: () -> Unit,
     onTrackClick: (String) -> Unit,
+    onTrackLongClick: (String) -> Unit = {},
     onPlaylistClick: (String) -> Unit,
     onRetry: () -> Unit,
 ) {
@@ -132,7 +140,11 @@ fun HomeSectionScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     items(state.tracks, key = { it.id }) { track ->
-                        TrackRow(track = track, onClick = { onTrackClick(track.id) })
+                        TrackRow(
+                            track = track,
+                            onClick = { onTrackClick(track.id) },
+                            onLongClick = { onTrackLongClick(track.id) },
+                        )
                     }
                 }
             }
@@ -144,12 +156,13 @@ fun HomeSectionScreen(
 private fun TrackRow(
     track: PlayableItem,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .padding(12.dp),
     ) {
         Text(

@@ -63,9 +63,10 @@ sealed interface PremiumIntent {
 sealed interface PremiumEffect {
     data object NavigateBack : PremiumEffect
     data class NavigateToPayment(
+        val plan: String,
         val price: String,
         val title: String,
-        val desc: String
+        val desc: String,
     ) : PremiumEffect
     data class ShowMessage(val message: String) : PremiumEffect
 }

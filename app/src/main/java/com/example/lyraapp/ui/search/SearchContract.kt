@@ -34,12 +34,14 @@ object SearchContract {
         data class OnCategorySelected(val category: String) : Intent
         data class OnGenreClick(val genreName: String) : Intent
         data class OnSongClick(val songId: String) : Intent
+        data class OnSongLongClick(val songId: String) : Intent
         data object LoadMoreResults : Intent
     }
 
     sealed interface SideEffect {
         data class ShowToast(val message: String) : SideEffect
         data object NavigateToPlayer : SideEffect
+        data class NavigateToSongDetail(val songId: String) : SideEffect
     }
 }
 

@@ -68,8 +68,20 @@ class ProfileViewModel @Inject constructor(
                     appSettingsRepository.toggleNotifications()
                     _effect.send(ProfileEffect.ShowMessage("Bildirim ayarı güncellendi."))
                 }
-                "privacy", "help" -> {
-                    _effect.send(ProfileEffect.ShowMessage("Bu özellik yakında eklenecek."))
+                "privacy" -> {
+                    _effect.send(
+                        ProfileEffect.ShowMessage(
+                            "Lyra yalnızca dinleme geçmişini ve favorilerini cihazında saklar. " +
+                                "Kişisel verilerin API üzerinden güvenli şekilde işlenir.",
+                        ),
+                    )
+                }
+                "help" -> {
+                    _effect.send(
+                        ProfileEffect.ShowMessage(
+                            "Destek: OTP kodu 123456 ile giriş yapabilirsin. Premium test kartı: 4242 4242 4242 4242.",
+                        ),
+                    )
                 }
             }
         }

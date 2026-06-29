@@ -191,6 +191,39 @@ data class RecordPlayDataDto(
 )
 
 @Serializable
+data class CheckoutCardBody(
+    val number: String,
+    val expMonth: Int,
+    val expYear: Int,
+    val cvc: String,
+    val holderName: String? = null,
+)
+
+@Serializable
+data class CheckoutRequestBody(
+    val plan: String,
+    val card: CheckoutCardBody,
+)
+
+@Serializable
+data class CheckoutPaymentDto(
+    val transactionId: String? = null,
+    val amountKurus: Int = 0,
+    val currency: String = "TRY",
+)
+
+@Serializable
+data class CheckoutDataDto(
+    val payment: CheckoutPaymentDto? = null,
+    val membership: MembershipDto? = null,
+)
+
+@Serializable
+data class DeletePlaylistDataDto(
+    val deleted: Boolean = false,
+)
+
+@Serializable
 data class LogoutDataDto(
     val revoked: Boolean = false,
 )

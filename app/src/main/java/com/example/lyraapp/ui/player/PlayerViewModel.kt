@@ -46,6 +46,8 @@ class PlayerViewModel @Inject constructor(
                         durationMs = playback.durationMs,
                         shuffleEnabled = playback.shuffleEnabled,
                         repeatEnabled = playback.repeatEnabled,
+                        isPlayingAd = playback.isPlayingAd,
+                        adTitle = playback.adTitle,
                     )
                 }
             }

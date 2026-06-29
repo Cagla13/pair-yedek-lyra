@@ -27,6 +27,8 @@ fun LyraPlaybackBar(
         isPlaying = playbackState.isPlaying,
         progressMs = playbackState.progressMs,
         durationMs = playbackState.durationMs,
+        isPlayingAd = playbackState.isPlayingAd,
+        adTitle = playbackState.adTitle,
         onBarClick = onNavigateToPlayer,
         onTogglePlayPause = viewModel::togglePlayPause,
         modifier = modifier,

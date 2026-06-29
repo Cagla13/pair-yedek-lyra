@@ -5,7 +5,10 @@ import com.example.lyraapp.data.remote.dto.AdCompleteDataDto
 import com.example.lyraapp.data.remote.dto.AddPlaylistTrackBody
 import com.example.lyraapp.data.remote.dto.ApiEnvelope
 import com.example.lyraapp.data.remote.dto.AuthSessionDto
+import com.example.lyraapp.data.remote.dto.CheckoutRequestBody
+import com.example.lyraapp.data.remote.dto.CheckoutDataDto
 import com.example.lyraapp.data.remote.dto.CreatePlaylistRequest
+import com.example.lyraapp.data.remote.dto.DeletePlaylistDataDto
 import com.example.lyraapp.data.remote.dto.LogoutDataDto
 import com.example.lyraapp.data.remote.dto.MembershipPlanDto
 import com.example.lyraapp.data.remote.dto.OtpRequestBody
@@ -85,6 +88,11 @@ interface LyraApiService {
         @Body request: CreatePlaylistRequest,
     ): ApiEnvelope<PlaylistDto>
 
+    @DELETE("api/v1/me/playlists/{id}")
+    suspend fun deletePlaylist(
+        @Path("id") playlistId: String,
+    ): ApiEnvelope<DeletePlaylistDataDto>
+
     @POST("api/v1/me/playlists/{id}/tracks")
     suspend fun addTrackToPlaylist(
         @Path("id") playlistId: String,
@@ -134,6 +142,11 @@ interface LyraApiService {
 
     @GET("api/v1/memberships/plans")
     suspend fun getMembershipPlans(): ApiEnvelope<List<MembershipPlanDto>>
+
+    @POST("api/v1/memberships/checkout")
+    suspend fun checkout(
+        @Body body: CheckoutRequestBody,
+    ): ApiEnvelope<CheckoutDataDto>
 
     @POST("api/v1/me/plays")
     suspend fun recordPlay(

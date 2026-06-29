@@ -79,6 +79,8 @@ class HomeViewModel @Inject constructor(
                         },
                         isPlaying = playback.isPlaying,
                         isFavorite = playback.isFavorite,
+                        isPlayingAd = playback.isPlayingAd,
+                        adTitle = playback.adTitle,
                     )
                 }
             }
@@ -89,6 +91,9 @@ class HomeViewModel @Inject constructor(
         when (intent) {
             is HomeIntent.QuickPickClicked -> playTrack(intent.itemId)
             is HomeIntent.TrackClicked -> playTrack(intent.itemId)
+            is HomeIntent.TrackLongClicked -> viewModelScope.launch {
+                _effect.send(HomeEffect.NavigateToSongDetail(intent.itemId))
+            }
             HomeIntent.TogglePlayPause -> viewModelScope.launch {
                 playerRepository.togglePlayPause()
             }
@@ -163,13 +168,13 @@ class HomeViewModel @Inject constructor(
             _uiState.update { it.copy(premiumExpiryPrompt = null) }
             return
         }
-        currentMembershipExpiresAt = membership.expiresAt
+        currentMembershipExpiresAt = membership.expiryPromptDismissKey()
         if (!membership.shouldShowExpiryPrompt()) {
             _uiState.update { it.copy(premiumExpiryPrompt = null) }
             return
         }
-        val expiresAt = membership.expiresAt ?: return
-        if (premiumPromptStore.isDismissed(expiresAt)) return
+        val dismissKey = membership.expiryPromptDismissKey() ?: return
+        if (premiumPromptStore.isDismissed(dismissKey)) return
 
         membershipRepository.loadPlans()
             .onSuccess { plans ->
@@ -178,7 +183,7 @@ class HomeViewModel @Inject constructor(
                 _uiState.update {
                     it.copy(
                         premiumExpiryPrompt = PremiumExpiryPromptUi(
-                            daysRemaining = membership.daysUntilExpiry()?.coerceAtLeast(0) ?: 0,
+                            daysRemaining = membership.daysUntilExpiryPrompt()?.coerceAtLeast(0) ?: 0,
                             recurringPriceLabel = recurring?.monthlyPriceLabel ?: recurring?.priceLabel.orEmpty(),
                             oneTimePriceLabel = oneTime?.priceLabel.orEmpty(),
                             oneTimeDurationDays = oneTime?.durationDays ?: 30,

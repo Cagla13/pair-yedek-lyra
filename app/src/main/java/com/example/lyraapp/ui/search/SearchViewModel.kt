@@ -56,6 +56,9 @@ class SearchViewModel @Inject constructor(
                 scheduleSearch(intent.genreName, replaceQuery = true)
             }
             is SearchContract.Intent.OnSongClick -> playSong(intent.songId)
+            is SearchContract.Intent.OnSongLongClick -> viewModelScope.launch {
+                _effect.emit(SearchContract.SideEffect.NavigateToSongDetail(intent.songId))
+            }
             SearchContract.Intent.LoadMoreResults -> loadMoreResults()
         }
     }
