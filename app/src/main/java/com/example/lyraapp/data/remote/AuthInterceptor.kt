@@ -14,12 +14,15 @@ class AuthInterceptor @Inject constructor(
         val authenticatedRequest = original.withBearerToken()
         var response = chain.proceed(authenticatedRequest)
 
-        if (response.code == 401 && !original.url.encodedPath.contains("/auth/")) {
-            response.close()
-            if (tokenRefreshManager.refreshAccessTokenBlocking()) {
+       if (response.code == 401 && !original.url.encodedPath.contains("/auth/")) {
+
+            val isRefreshSuccessful = tokenRefreshManager.refreshAccessTokenBlocking()
+
+            if (isRefreshSuccessful) {
+                 response.close()
                 response = chain.proceed(original.withBearerToken())
             }
-        }
+                }
 
         return response
     }

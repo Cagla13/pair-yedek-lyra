@@ -22,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -73,86 +74,91 @@ fun LoginScreen(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
-    Scaffold(
+    // Siyah ekranı engellemek için kod yapını bozmadan en dışa Surface ekledik
+    Surface(
         modifier = modifier.fillMaxSize(),
-        containerColor = MaterialTheme.colorScheme.background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .systemBarsPadding()
-                .imePadding()
-                .padding(horizontal = 24.dp),
-        ) {
-            Spacer(Modifier.weight(0.18f))
-
-            BrandLogo()
-            Spacer(Modifier.height(28.dp))
-
-            Text(
-                text = "Lyra'ya hoş geldin",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = "Devam etmek için telefon numaranı gir. Sana bir doğrulama kodu göndereceğiz.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(32.dp))
-
-            OutlinedTextField(
-                value = state.phoneNumber,
-                onValueChange = { onIntent(LoginIntent.PhoneNumberChanged(it)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                label = { Text("Telefon numarası") },
-                prefix = { Text("+90") },
-                placeholder = { Text("5XX XXX XX XX") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                leadingIcon = {
-                    Icon(
-                        imageVector = LyraIcons.Smartphone,
-                        contentDescription = null,
-                    )
-                },
-            )
-            Spacer(Modifier.height(28.dp))
-
-            Button(
-                onClick = { onIntent(LoginIntent.Submit) },
-                enabled = state.isContinueEnabled && !state.isLoading,
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent, // Arka plan kontrolünü Surface'e bıraktık
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { innerPadding ->
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(28.dp),
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .systemBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 24.dp),
             ) {
-                if (state.isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = Color.White,
-                    )
-                } else {
-                    Text(
-                        text = "Doğrulama kodu gönder",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Icon(
-                        imageVector = LyraIcons.ArrowForward,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-            }
+                Spacer(Modifier.weight(0.18f))
 
-            Spacer(Modifier.weight(0.34f))
+                BrandLogo()
+                Spacer(Modifier.height(28.dp))
+
+                Text(
+                    text = "Lyra'ya hoş geldin",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Devam etmek için telefon numaranı gir. Sana bir doğrulama kodu göndereceğiz.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(32.dp))
+
+                OutlinedTextField(
+                    value = state.phoneNumber,
+                    onValueChange = { onIntent(LoginIntent.PhoneNumberChanged(it)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    label = { Text("Telefon numarası") },
+                    prefix = { Text("+90") },
+                    placeholder = { Text("5XX XXX XX XX") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = LyraIcons.Smartphone,
+                            contentDescription = null,
+                        )
+                    },
+                )
+                Spacer(Modifier.height(28.dp))
+
+                Button(
+                    onClick = { onIntent(LoginIntent.Submit) },
+                    enabled = state.isContinueEnabled && !state.isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(28.dp),
+                ) {
+                    if (state.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.White,
+                        )
+                    } else {
+                        Text(
+                            text = "Doğrulama kodu gönder",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            imageVector = LyraIcons.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                }
+
+                Spacer(Modifier.weight(0.34f))
+            }
         }
     }
 }

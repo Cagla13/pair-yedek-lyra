@@ -23,9 +23,15 @@ class SessionViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            authRepository.hydrateSession()
-                .onSuccess { loggedIn -> _isLoggedIn.value = loggedIn }
-            _isReady.value = true
+            try {
+                authRepository.hydrateSession()
+                    .onSuccess { loggedIn -> _isLoggedIn.value = loggedIn }
+                    .onFailure { _isLoggedIn.value = false }
+            } catch (e: Exception) {
+                _isLoggedIn.value = false
+            } finally {
+                _isReady.value = true
+            }
         }
     }
 }
