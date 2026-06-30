@@ -70,7 +70,7 @@ com.example.lyraapp/
 
 ##  Kurulum ve Çalıştırma
 
-1.  Repository'yi klonlayın: `git clone https://github.com/username/LyraApp.git`
+1.  Repository'yi klonlayın: `https://github.com/Cagla13/pair-yedek-lyra`
 2.  Android Studio ile açın.
 3.  Projeyi senkronize edin ve bir emülatör/cihaz üzerinde `Run` tuşuna basın.
 
