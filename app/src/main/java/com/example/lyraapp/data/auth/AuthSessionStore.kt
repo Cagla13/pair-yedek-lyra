@@ -95,7 +95,6 @@ class AuthSessionStore @Inject constructor(
             preferences.remove(MEMBERSHIP_TYPE_KEY)
             preferences.remove(MEMBERSHIP_STATUS_KEY)
             preferences.remove(MEMBERSHIP_AUTO_RENEW_KEY)
-            preferences.remove(MEMBERSHIP_STARTED_AT_KEY)
             preferences.remove(MEMBERSHIP_EXPIRES_AT_KEY)
             return
         }
@@ -103,8 +102,6 @@ class AuthSessionStore @Inject constructor(
         preferences[MEMBERSHIP_TYPE_KEY] = membership.type
         preferences[MEMBERSHIP_STATUS_KEY] = membership.status
         preferences[MEMBERSHIP_AUTO_RENEW_KEY] = membership.autoRenew
-        membership.startedAt?.let { preferences[MEMBERSHIP_STARTED_AT_KEY] = it }
-            ?: preferences.remove(MEMBERSHIP_STARTED_AT_KEY)
         membership.expiresAt?.let { preferences[MEMBERSHIP_EXPIRES_AT_KEY] = it }
             ?: preferences.remove(MEMBERSHIP_EXPIRES_AT_KEY)
     }
@@ -117,7 +114,6 @@ class AuthSessionStore @Inject constructor(
             type = type,
             status = status,
             autoRenew = preferences[MEMBERSHIP_AUTO_RENEW_KEY] ?: false,
-            startedAt = preferences[MEMBERSHIP_STARTED_AT_KEY],
             expiresAt = preferences[MEMBERSHIP_EXPIRES_AT_KEY],
         )
     }
@@ -137,7 +133,6 @@ class AuthSessionStore @Inject constructor(
             preferences.remove(MEMBERSHIP_TYPE_KEY)
             preferences.remove(MEMBERSHIP_STATUS_KEY)
             preferences.remove(MEMBERSHIP_AUTO_RENEW_KEY)
-            preferences.remove(MEMBERSHIP_STARTED_AT_KEY)
             preferences.remove(MEMBERSHIP_EXPIRES_AT_KEY)
             preferences.remove(CURRENT_USER_PHONE_KEY)
             preferences.remove(REGISTERED_USERS_KEY)
@@ -161,7 +156,6 @@ class AuthSessionStore @Inject constructor(
         val MEMBERSHIP_TYPE_KEY = stringPreferencesKey("membership_type")
         val MEMBERSHIP_STATUS_KEY = stringPreferencesKey("membership_status")
         val MEMBERSHIP_AUTO_RENEW_KEY = booleanPreferencesKey("membership_auto_renew")
-        val MEMBERSHIP_STARTED_AT_KEY = stringPreferencesKey("membership_started_at")
         val MEMBERSHIP_EXPIRES_AT_KEY = stringPreferencesKey("membership_expires_at")
     }
 }
