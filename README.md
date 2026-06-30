@@ -53,20 +53,44 @@ LyraApp, ölçeklenebilirlik ve test edilebilirlik için **MVI (Model-View-Inten
 - **Data Katmanı:** API servisleri, Repository implementasyonları ve DataSource.
 - **Service Katmanı:** Media3 `MediaSessionService` entegrasyonu ile arka plan medya yönetimi.
 
-## Proje Klasör Yapısı
+##  Proje Mimarisi
+
+Uygulama, ölçeklenebilirliği ve sürdürülebilirliği sağlamak amacıyla modüler bir yapıda tasarlanmıştır. Arayüz katmanında **MVI (Model-View-Intent)** mimarisi benimsenmiş olup, Dependency Injection işlemleri için **Hilt** kullanılmaktadır.
 
 ```text
 com.example.lyraapp/
-├── data/           # API modelleri, Repositoryler ve Network modülleri
-├── di/             # Hilt Dependency Injection modülleri
-├── service/        # LyraMediaService ve Medya Kontrolcüleri
-├── ui/             # Ekranlar ve UI bileşenleri (Her modül MVI ile ayrılmıştır)
-│   ├── auth/       # Kayıt ve Giriş işlemleri
-│   ├── home/       # Ana sayfa ve keşfet akışı
-│   ├── player/     # Oynatıcı kontrolleri ve ses motoru yönetimi
-│   └── ...         # Diğer özellik modülleri
-└── MainActivity.kt # Ana giriş ve Navigasyon Host
-```
+├── data/                  # API modelleri, Repository'ler ve Veri Kaynakları
+│   ├── auth/              # Örn: AuthRepository.kt, RemoteAuthRepository.kt
+│   ├── catalog/
+│   ├── favorites/
+│   ├── home/
+│   ├── library/
+│   ├── membership/
+│   ├── player/
+│   ├── playlist/
+│   ├── remote/
+│   ├── search/
+│   ├── settings/
+│   └── theme/
+├── di/                    # Hilt Dependency Injection Modülleri
+│   ├── AuthModule.kt
+│   ├── HomeModule.kt
+│   ├── MembershipModule.kt
+│   ├── NetworkModule.kt
+│   ├── PlayerModule.kt
+│   └── ThemeModule.kt
+├── service/               # Arka Plan Servisleri ve Medya Kontrolcüleri
+│   └── LyraMediaService.kt
+├── ui/                    # Ekranlar ve UI Bileşenleri (MVI ile modüler yapı)
+│   ├── appearance/
+│   ├── auth/              # Kayıt, Giriş ve yetkilendirme akışları
+│   ├── create_playlist/   # Çalma listesi oluşturma ekranları
+│   ├── favorites/         # Favoriler modülü
+│   ├── home/              # Ana sayfa ve keşfet akışı
+│   ├── home_section/      
+│   ├── player/            # Oynatıcı kontrolleri ve ses motoru yönetimi
+│   └── ...                # Diğer alt özellik modülleri
+└── MainActivity.kt        # Ana Giriş Noktası ve Navigation Host
 
 ##  Kurulum ve Çalıştırma
 
